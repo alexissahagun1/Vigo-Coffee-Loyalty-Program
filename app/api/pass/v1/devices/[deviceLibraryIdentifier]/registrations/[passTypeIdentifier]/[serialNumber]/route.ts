@@ -23,9 +23,25 @@ export async function POST(
     console.log(`[${timestamp}]    Method: ${req.method}`);
     
     // Get push token from request body
+    // Apple sends it as plain text, but handle JSON if present
     const body = await req.text();
-    const pushToken = body.trim();
+    let pushToken = body.trim();
+    
+    // If it's JSON, parse it and extract the token
+    if (pushToken.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(pushToken);
+        pushToken = parsed.pushToken || parsed.push_token || pushToken;
+      } catch (e) {
+        // If JSON parsing fails, use as-is
+        console.log(`   Warning: Could not parse push token JSON, using as-is`);
+      }
+    }
+    
     console.log(`   Push Token: ${pushToken ? 'Present' : 'Missing'}`);
+    if (pushToken) {
+      console.log(`   Push Token (first 20 chars): ${pushToken.substring(0, 20)}...`);
+    }
 
     // Validate authentication token
     const authToken = req.headers.get('authorization')?.replace('ApplePass ', '');

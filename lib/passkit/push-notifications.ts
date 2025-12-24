@@ -79,6 +79,18 @@ export async function notifyPassUpdate(
 
         // Create notification for each device
         const notifications = registrations.map(reg => {
+            // Extract push token - handle both plain string and JSON string formats
+            let pushToken = reg.push_token;
+            if (typeof pushToken === 'string' && pushToken.startsWith('{')) {
+                try {
+                    const parsed = JSON.parse(pushToken);
+                    pushToken = parsed.pushToken || parsed.push_token || pushToken;
+                } catch (e) {
+                    // If JSON parsing fails, use as-is
+                    console.warn(`⚠️  Could not parse push token JSON for device ${reg.device_library_identifier}`);
+                }
+            }
+            
             const notification = new apn.Notification();
             notification.topic = passTypeIdentifier;
             notification.expiry = Math.floor(Date.now() / 1000) + 3600; // 1 hour
@@ -86,7 +98,7 @@ export async function notifyPassUpdate(
             notification.alert = 'Your loyalty card has been updated!';
             notification.payload = { 'aps': { 'content-available': 1 } };
             
-            return apnProvider.send(notification, reg.push_token);
+            return apnProvider.send(notification, pushToken);
         });
 
         const results = await Promise.all(notifications);
