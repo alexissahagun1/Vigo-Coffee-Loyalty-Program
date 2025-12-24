@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PKPass } from 'passkit-generator';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import sharp from 'sharp';
@@ -32,7 +32,8 @@ export async function GET(
     const ifModifiedSince = req.headers.get('if-modified-since');
     
     // Fetch current user data (serialNumber is the user ID)
-    const supabase = await createClient();
+    // Use service role client because Apple's servers don't have authentication cookies
+    const supabase = createServiceRoleClient();
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
