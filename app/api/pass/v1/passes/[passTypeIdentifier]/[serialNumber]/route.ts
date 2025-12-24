@@ -22,17 +22,23 @@ export async function GET(
   try {
     const { passTypeIdentifier, serialNumber } = await params;
     
+    console.log(`📱 Apple fetching pass update for serial: ${serialNumber}`);
+    console.log(`   Pass Type: ${passTypeIdentifier}`);
+    
     // Validate authentication token
     const authToken = req.headers.get('authorization')?.replace('ApplePass ', '');
     if (!authToken) {
+      console.error(`❌ No auth token provided for pass ${serialNumber}`);
       return new NextResponse('Unauthorized', { status: 401 });
     }
+    console.log(`   Auth token: ${authToken.substring(0, 8)}...`);
 
     // Get If-Modified-Since header to check if update is needed
     const ifModifiedSince = req.headers.get('if-modified-since');
     
     // Fetch current user data (serialNumber is the user ID)
     // Use service role client because Apple's servers don't have authentication cookies
+    console.log(`🔍 Fetching profile for user: ${serialNumber}`);
     const supabase = createServiceRoleClient();
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -40,10 +46,17 @@ export async function GET(
       .eq('id', serialNumber)
       .single();
 
-    if (profileError || !profile) {
-      console.error('Profile not found for serial number:', serialNumber);
+    if (profileError) {
+      console.error(`❌ Database error fetching profile:`, profileError);
       return new NextResponse('Not Found', { status: 404 });
     }
+    
+    if (!profile) {
+      console.error(`❌ Profile not found for serial number: ${serialNumber}`);
+      return new NextResponse('Not Found', { status: 404 });
+    }
+    
+    console.log(`✅ Profile found: ${profile.full_name}, Points: ${profile.points_balance}`);
 
     // Check if pass needs update (compare updated_at with If-Modified-Since)
     if (ifModifiedSince && profile.updated_at) {
