@@ -105,11 +105,27 @@ export async function notifyPassUpdate(
         const results = await Promise.all(notifications);
         apnProvider.shutdown();
         
-        const successCount = results.filter(result => result.sent).length;
-        const failedCount = results.filter(result => !result.sent).length;
+        const successCount = results.filter(result => result.sent && result.sent.length > 0).length;
+        const failedCount = results.filter(result => result.failed && result.failed.length > 0).length;
+
+        // Log detailed results
+        results.forEach((result, index) => {
+            if (result.sent && result.sent.length > 0) {
+                console.log(`✅ Push notification sent successfully to device ${index + 1}`);
+            }
+            if (result.failed && result.failed.length > 0) {
+                result.failed.forEach((failure: any) => {
+                    console.error(`❌ Failed to send push notification to device ${index + 1}:`, failure);
+                    if (failure.response) {
+                        console.error(`   APNs error:`, failure.response);
+                    }
+                });
+            }
+        });
 
         if (successCount > 0) {
             console.log(`✅ Push notifications sent to ${successCount} devices for pass ${serialNumber}`);
+            console.log(`📱 Apple should fetch updated pass within a few seconds`);
         }
         if (failedCount > 0) {
             console.warn(`⚠️  Failed to send push notifications to ${failedCount} devices`);

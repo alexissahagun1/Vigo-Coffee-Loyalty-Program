@@ -48,8 +48,8 @@ export async function GET(
 
     if (error) {
       console.error(`[${timestamp}] ❌ Error fetching registrations:`, error);
-      // If table doesn't exist yet, return empty array (Apple expects 200 with JSON)
-      return NextResponse.json([], { status: 200 });
+      // If table doesn't exist yet, return empty dictionary (Apple expects a dictionary, not an array)
+      return NextResponse.json({}, { status: 200 });
     }
 
     const serialNumbers = registrations?.map(r => r.serial_number) || [];
@@ -57,12 +57,15 @@ export async function GET(
     console.log(`[${timestamp}] ✅ Returning ${serialNumbers.length} serial number(s) for device ${deviceLibraryIdentifier}`);
     if (serialNumbers.length > 0) {
       console.log(`[${timestamp}]    Serial numbers: ${serialNumbers.join(', ')}`);
+      // When there are registrations, return array of serial numbers
+      return NextResponse.json(serialNumbers, { status: 200 });
+    } else {
+      // When there are no registrations, return empty dictionary (Apple PassKit spec requirement)
+      return NextResponse.json({}, { status: 200 });
     }
-    
-    return NextResponse.json(serialNumbers, { status: 200 });
   } catch (error: any) {
     console.error('❌ Error in device registrations GET:', error);
-    return NextResponse.json([], { status: 200 }); // Apple expects 200 even on error
+    return NextResponse.json({}, { status: 200 }); // Apple expects 200 with empty dictionary on error
   }
 }
 
