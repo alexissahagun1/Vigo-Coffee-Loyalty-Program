@@ -14,15 +14,22 @@ export async function POST(
   try {
     const { deviceLibraryIdentifier, passTypeIdentifier, serialNumber } = await params;
     
+    console.log(`📱 Registration attempt for pass ${serialNumber}`);
+    console.log(`   Device: ${deviceLibraryIdentifier}`);
+    console.log(`   Pass Type: ${passTypeIdentifier}`);
+    
     // Get push token from request body
     const body = await req.text();
     const pushToken = body.trim();
+    console.log(`   Push Token: ${pushToken ? 'Present' : 'Missing'}`);
 
     // Validate authentication token
     const authToken = req.headers.get('authorization')?.replace('ApplePass ', '');
     if (!authToken) {
+      console.error('❌ Registration failed: No auth token provided');
       return new NextResponse('Unauthorized', { status: 401 });
     }
+    console.log(`   Auth Token: ${authToken.substring(0, 8)}...`);
 
     // Store registration in database
     const supabase = await createClient();
@@ -41,16 +48,18 @@ export async function POST(
       });
 
     if (insertError) {
-      console.error('Error storing registration:', insertError);
+      console.error('❌ Error storing registration:', insertError);
       // If table doesn't exist, log but return success (we'll create table later)
       console.log('⚠️  pass_registrations table may not exist yet. Create it with a migration.');
       return new NextResponse('Created', { status: 201 });
     }
 
-    console.log(`✅ Pass registered: ${serialNumber} on device ${deviceLibraryIdentifier}`);
+    console.log(`✅ Pass registered successfully: ${serialNumber} on device ${deviceLibraryIdentifier}`);
+    console.log(`   Registration stored in database`);
     return new NextResponse('Created', { status: 201 });
   } catch (error: any) {
-    console.error('Error in device registration POST:', error);
+    console.error('❌ Error in device registration POST:', error);
+    console.error('   Stack:', error.stack);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

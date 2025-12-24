@@ -11,9 +11,10 @@ import crypto from 'crypto';
 export function generateAuthToken(userId: string, secret?: string): string {
   const secretKey = secret || process.env.PASS_AUTH_SECRET || 'default-secret-change-in-production';
   
-  // Create a hash of userId + secret + timestamp for uniqueness
-  // In production, use a more secure method like JWT
-  const data = `${userId}:${secretKey}:${Date.now()}`;
+  // Create a deterministic hash of userId + secret (NO timestamp!)
+  // Apple will send this token back, so it must be the same every time
+  // The token should be unique per user but consistent for the same user
+  const data = `${userId}:${secretKey}`;
   const token = crypto
     .createHash('sha256')
     .update(data)
@@ -32,9 +33,9 @@ export function generateAuthToken(userId: string, secret?: string): string {
  * @returns True if token is valid
  */
 export function validateAuthToken(token: string, userId: string, secret?: string): boolean {
-  // For simplicity, we'll store tokens in the database
-  // In production, use JWT or similar stateless validation
-  // For now, we'll validate by checking if it matches the pattern
-  return token.length === 32 && /^[a-f0-9]+$/.test(token);
+  // Validate by regenerating the token and comparing
+  // Since the token is deterministic (no timestamp), we can validate it
+  const expectedToken = generateAuthToken(userId, secret);
+  return token === expectedToken && token.length === 32 && /^[a-f0-9]+$/.test(token);
 }
 

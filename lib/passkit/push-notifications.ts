@@ -49,7 +49,10 @@ export async function notifyPassUpdate(
     }
 
     if (!registrations || registrations.length === 0) {
-      console.log(`No registered devices found for pass ${serialNumber}`);
+      console.log(`⚠️  No registered devices found for pass ${serialNumber}`);
+      console.log(`   Pass must be registered first for instant updates`);
+      console.log(`   Apple will register automatically within 1-2 minutes of adding pass to Wallet`);
+      console.log(`   Until then, pass will update when user opens it in Wallet`);
       return 0;
     }
 
