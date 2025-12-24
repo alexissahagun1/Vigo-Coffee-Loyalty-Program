@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { notifyPassUpdate, notifyRewardEarned } from "@/lib/passkit/push-notifications";
 
 const POINTS_PER_PURCHASE = 1; // 1 point per purchase
@@ -19,8 +19,9 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             );
         }
-        // Connect to Supabase database
-        const supabase = await createClient();
+        // Connect to Supabase database with service role to bypass RLS
+        // This allows the API to update customer points without user authentication
+        const supabase = createServiceRoleClient();
 
         // Find customer in database
         const result = await supabase

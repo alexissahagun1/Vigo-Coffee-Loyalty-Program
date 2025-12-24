@@ -17,7 +17,7 @@
  * - PASS_TYPE_ID: Your Pass Type ID (e.g., pass.com.vigocoffee.loyalty)
  */
 
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 import apn from 'node-apn';
 
 /**
@@ -35,7 +35,8 @@ export async function notifyPassUpdate(
 ): Promise<number> {
   try {
     // Get all registered devices for this pass
-    const supabase = await createClient();
+    // Use service role to bypass RLS since this is called from API routes
+    const supabase = createServiceRoleClient();
     const { data: registrations, error } = await supabase
       .from('pass_registrations')
       .select('device_library_identifier, push_token')
