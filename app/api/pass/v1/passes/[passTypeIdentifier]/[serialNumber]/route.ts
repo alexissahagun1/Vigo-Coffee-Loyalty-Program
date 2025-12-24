@@ -74,9 +74,14 @@ export async function GET(
     }
 
     // Configure web service URL (must be in pass.json)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-      'http://localhost:3000';
+    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+      'http://localhost:3000');
+    
+    // Ensure baseUrl has protocol (https:// or http://)
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+      baseUrl = `https://${baseUrl}`;
+    }
     
     // Prepare pass.json properties with webServiceURL
     const passJsonProps: any = {

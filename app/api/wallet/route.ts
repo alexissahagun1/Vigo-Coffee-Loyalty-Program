@@ -113,9 +113,14 @@ export async function GET(req: NextRequest) {
 
   // 3. Configure Web Service URL for Real-Time Updates
   // This must be set in pass.json to enable "Automatic Updates" toggle
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-    'http://localhost:3000';
+  let baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+    'http://localhost:3000');
+  
+  // Ensure baseUrl has protocol (https:// or http://)
+  if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+    baseUrl = `https://${baseUrl}`;
+  }
   
   // Prepare pass.json properties
   const passJsonProps: any = {
