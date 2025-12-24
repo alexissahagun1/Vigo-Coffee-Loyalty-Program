@@ -132,24 +132,32 @@ export async function GET(req: NextRequest) {
   const POINTS_FOR_MEAL = 25;
 
   let rewardMessage = null;
+  let rewardEarned = false;
+  let rewardLabel = null;
 
   // Check meal first (higher value reward)
   if (points >= POINTS_FOR_MEAL && points % POINTS_FOR_MEAL === 0) {
+    rewardEarned = true;
     rewardMessage = '🎉 You earned a FREE MEAL! 🍽️';
+    rewardLabel = 'You just earned a reward!';
   }
   // Then check coffee
   else if (points >= POINTS_FOR_COFFEE && points % POINTS_FOR_COFFEE === 0) {
+    rewardEarned = true;
     rewardMessage = '🎉 You earned a FREE COFFEE! ☕️';
+    rewardLabel = 'You just earned a reward!';
   }
+  // No reward yet - show motivational message
   else {
     rewardMessage = '🎉 No reward yet! Keep shopping, you are almost there! 🛒';
+    rewardLabel = 'KEEP GOING';
   }
 
-  // Add reward message to pass only if earned
+  // Always show message field (either reward or motivational)
   if (rewardMessage) {
     pass.auxiliaryFields.push({
       key: 'reward',
-      label: 'You just earned a reward!',
+      label: rewardLabel,
       value: rewardMessage,
       textAlignment: 'PKTextAlignmentCenter'
     });
