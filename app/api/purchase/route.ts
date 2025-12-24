@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { notifyPassUpdate, notifyRewardEarned } from "@/lib/passkit/push-notifications";
 
 const POINTS_PER_PURCHASE = 1; // 1 point per purchase
 const POINTS_FOR_COFFEE = 10; // 10 points for a coffee
@@ -88,6 +89,21 @@ export async function POST(req: NextRequest) {
                 { error: 'Failed to update profile', details: updatedError?.message},
                 { status: 500 }
             );
+        }
+
+        // Send push notifications to registered devices (if APNs is configured)
+        // This enables instant pass updates instead of waiting for periodic checks
+        try {
+            if (rewardEarned && rewardType) {
+                // Send special notification for reward earned
+                await notifyRewardEarned(customerId, rewardType as 'coffee' | 'meal');
+            } else {
+                // Send regular update notification
+                await notifyPassUpdate(customerId);
+            }
+        } catch (notificationError: any) {
+            // Don't fail the purchase if notifications fail
+            console.error('⚠️  Push notification failed (non-critical):', notificationError?.message);
         }
 
         // Return success response
