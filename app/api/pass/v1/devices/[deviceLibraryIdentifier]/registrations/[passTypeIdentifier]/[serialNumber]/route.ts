@@ -14,9 +14,13 @@ export async function POST(
   try {
     const { deviceLibraryIdentifier, passTypeIdentifier, serialNumber } = await params;
     
-    console.log(`📱 Registration attempt for pass ${serialNumber}`);
-    console.log(`   Device: ${deviceLibraryIdentifier}`);
-    console.log(`   Pass Type: ${passTypeIdentifier}`);
+    // Log with timestamp for debugging
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] 📱 Registration attempt for pass ${serialNumber}`);
+    console.log(`[${timestamp}]    Device: ${deviceLibraryIdentifier}`);
+    console.log(`[${timestamp}]    Pass Type: ${passTypeIdentifier}`);
+    console.log(`[${timestamp}]    URL: ${req.url}`);
+    console.log(`[${timestamp}]    Method: ${req.method}`);
     
     // Get push token from request body
     const body = await req.text();
