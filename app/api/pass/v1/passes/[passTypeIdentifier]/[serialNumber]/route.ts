@@ -174,16 +174,34 @@ export async function GET(
     const POINTS_FOR_COFFEE = 10;
     const POINTS_FOR_MEAL = 25;
 
+    // Get redeemed rewards with proper null/type safety
+    const redeemedRewards = profile.redeemed_rewards || { coffees: [], meals: [] };
+    // Ensure arrays exist and convert to numbers (JSONB might return strings)
+    const redeemedCoffees = Array.isArray(redeemedRewards.coffees)
+      ? redeemedRewards.coffees.map(Number).filter((n: number) => !isNaN(n))
+      : [];
+    const redeemedMeals = Array.isArray(redeemedRewards.meals)
+      ? redeemedRewards.meals.map(Number).filter((n: number) => !isNaN(n))
+      : [];
+
     let rewardMessage = null;
     let rewardLabel = null;
 
-    if (points >= POINTS_FOR_MEAL && points % POINTS_FOR_MEAL === 0) {
+    // Ensure points is a number for comparison
+    const currentPoints = Number(points) || 0;
+
+    // Check meal first (higher value reward) - only show if not redeemed
+    if (currentPoints >= POINTS_FOR_MEAL && currentPoints % POINTS_FOR_MEAL === 0 && !redeemedMeals.includes(currentPoints)) {
       rewardMessage = '🎉 You earned a FREE MEAL! 🍽️';
       rewardLabel = 'You just earned a reward!';
-    } else if (points >= POINTS_FOR_COFFEE && points % POINTS_FOR_COFFEE === 0) {
+    } 
+    // Then check coffee - only show if not redeemed
+    else if (currentPoints >= POINTS_FOR_COFFEE && currentPoints % POINTS_FOR_COFFEE === 0 && !redeemedCoffees.includes(currentPoints)) {
       rewardMessage = '🎉 You earned a FREE COFFEE! ☕️';
       rewardLabel = 'You just earned a reward!';
-    } else {
+    } 
+    // No reward yet - show motivational message
+    else {
       rewardMessage = 'No reward yet! Keep shopping, you are almost there!';
       rewardLabel = 'KEEP GOING';
     }

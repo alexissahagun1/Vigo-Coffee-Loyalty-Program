@@ -95,15 +95,30 @@ export async function POST(req: NextRequest) {
 
     const newPoints = (profile.points_balance || 0) + pointsToAdd;
 
-    // Update points
-    const { data: updatedProfile, error: updateError } = await supabase
+    // Update points - try with updated_at first, fallback without it if schema cache hasn't refreshed
+    let updateResult = await supabase
       .from('profiles')
       .update({
         points_balance: newPoints,
+        updated_at: new Date().toISOString(), // Update timestamp for PassKit If-Modified-Since
       })
       .eq('id', userId)
       .select()
       .single();
+
+    // If update failed due to schema cache issue (updated_at column not found), retry without it
+    if (updateResult.error && updateResult.error.message?.includes("updated_at")) {
+      updateResult = await supabase
+        .from('profiles')
+        .update({
+          points_balance: newPoints,
+        })
+        .eq('id', userId)
+        .select()
+        .single();
+    }
+
+    const { data: updatedProfile, error: updateError } = updateResult;
 
     if (updateError || !updatedProfile) {
       return NextResponse.json({ error: 'Failed to update points' }, { status: 500 });
