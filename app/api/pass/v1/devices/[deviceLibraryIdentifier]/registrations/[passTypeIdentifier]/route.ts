@@ -9,10 +9,10 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { deviceLibraryIdentifier: string; passTypeIdentifier: string } }
+  { params }: { params: Promise<{ deviceLibraryIdentifier: string; passTypeIdentifier: string }> }
 ) {
   try {
-    const { deviceLibraryIdentifier, passTypeIdentifier } = params;
+    const { deviceLibraryIdentifier, passTypeIdentifier } = await params;
     
     // Validate authentication token from Apple
     const authToken = req.headers.get('authorization')?.replace('ApplePass ', '');

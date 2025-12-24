@@ -9,10 +9,10 @@ import { createClient } from '@/lib/supabase/server';
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { deviceLibraryIdentifier: string; passTypeIdentifier: string; serialNumber: string } }
+  { params }: { params: Promise<{ deviceLibraryIdentifier: string; passTypeIdentifier: string; serialNumber: string }> }
 ) {
   try {
-    const { deviceLibraryIdentifier, passTypeIdentifier, serialNumber } = params;
+    const { deviceLibraryIdentifier, passTypeIdentifier, serialNumber } = await params;
     
     // Get push token from request body
     const body = await req.text();
@@ -63,10 +63,10 @@ export async function POST(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { deviceLibraryIdentifier: string; passTypeIdentifier: string; serialNumber: string } }
+  { params }: { params: Promise<{ deviceLibraryIdentifier: string; passTypeIdentifier: string; serialNumber: string }> }
 ) {
   try {
-    const { deviceLibraryIdentifier, passTypeIdentifier, serialNumber } = params;
+    const { deviceLibraryIdentifier, passTypeIdentifier, serialNumber } = await params;
 
     // Validate authentication token
     const authToken = req.headers.get('authorization')?.replace('ApplePass ', '');

@@ -17,10 +17,10 @@ import { generateAuthToken } from '@/lib/passkit/auth-token';
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { passTypeIdentifier: string; serialNumber: string } }
+  { params }: { params: Promise<{ passTypeIdentifier: string; serialNumber: string }> }
 ) {
   try {
-    const { passTypeIdentifier, serialNumber } = params;
+    const { passTypeIdentifier, serialNumber } = await params;
     
     // Validate authentication token
     const authToken = req.headers.get('authorization')?.replace('ApplePass ', '');
