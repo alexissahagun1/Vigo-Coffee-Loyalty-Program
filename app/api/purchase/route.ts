@@ -69,16 +69,30 @@ export async function POST(req: NextRequest) {
             rewardType = null;
         }
         // Update customer profile in database
-        const updateResult = await supabase
+        // Try with updated_at first, fallback without it if schema cache hasn't refreshed
+        let updateResult = await supabase
             .from('profiles')
             .update({
                 points_balance: newPointsBalance,
                 total_purchases: newTotalPurchases,
-                updated_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(), // Current timestamp (needed for PassKit If-Modified-Since)
             })
             .eq('id', customerId)
             .select()
             .single();
+
+        // If update failed due to schema cache issue (updated_at column not found), retry without it
+        if (updateResult.error && updateResult.error.message?.includes("updated_at")) {
+            updateResult = await supabase
+                .from('profiles')
+                .update({
+                    points_balance: newPointsBalance,
+                    total_purchases: newTotalPurchases,
+                })
+                .eq('id', customerId)
+                .select()
+                .single();
+        }
             
         // Extract updated data
         const updatedProfile = updateResult.data;

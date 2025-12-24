@@ -103,15 +103,28 @@ export async function POST(req: NextRequest) {
 
         // Update the customer's profile in the database
         // We're only updating redeemed_rewards and updated_at (NO point deduction!)
-        const updateResult = await supabase
+        // Try with updated_at first, fallback without it if schema cache hasn't refreshed
+        let updateResult = await supabase
             .from("profiles")
             .update({
                 redeemed_rewards: updatedRewards, // New redeemed rewards object with the added threshold
-                updated_at: new Date().toISOString(), // Current timestamp in ISO format
+                updated_at: new Date().toISOString(), // Current timestamp in ISO format (needed for PassKit If-Modified-Since)
             })
-            .eq("id", customerId) // Only update the row where id matches customerId
-            .select() // Return the updated row data
-            .single(); // Expect exactly one result
+            .eq("id", customerId)
+            .select()
+            .single();
+
+        // If update failed due to schema cache issue (updated_at column not found), retry without it
+        if (updateResult.error && updateResult.error.message?.includes("updated_at")) {
+            updateResult = await supabase
+                .from("profiles")
+                .update({
+                    redeemed_rewards: updatedRewards, // Update without updated_at (database default will handle it)
+                })
+                .eq("id", customerId)
+                .select()
+                .single();
+        }
 
         // Extract the updated profile data from the result
         const updatedProfile = updateResult.data;
