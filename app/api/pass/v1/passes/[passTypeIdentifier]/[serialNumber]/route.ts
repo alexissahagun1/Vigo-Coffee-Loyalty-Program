@@ -91,11 +91,11 @@ export async function GET(
       labelColor: 'rgb(200, 200, 200)'
     };
 
-    // Add webServiceURL and authenticationToken if in production
-    if (baseUrl && baseUrl !== 'http://localhost:3000') {
-      passJsonProps.webServiceURL = `${baseUrl}/api/pass`;
-      passJsonProps.authenticationToken = generateAuthToken(serialNumber);
-    }
+    // Add webServiceURL and authenticationToken
+    // Always set these so the pass can be registered, even on localhost
+    // (Note: Apple servers can't reach localhost, so updates won't work until production)
+    passJsonProps.webServiceURL = `${baseUrl}/api/pass`;
+    passJsonProps.authenticationToken = generateAuthToken(serialNumber);
 
     // Initialize the Pass (same logic as wallet route)
     const pass = new PKPass(

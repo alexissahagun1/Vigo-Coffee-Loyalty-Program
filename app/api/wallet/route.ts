@@ -131,17 +131,19 @@ export async function GET(req: NextRequest) {
     labelColor: 'rgb(200, 200, 200)'
   };
 
-  // Add webServiceURL and authenticationToken if in production
-  // These MUST be in pass.json for the toggles to appear
-  if (baseUrl && baseUrl !== 'http://localhost:3000') {
-    passJsonProps.webServiceURL = `${baseUrl}/api/pass`;
-    passJsonProps.authenticationToken = generateAuthToken(user.id);
-    console.log('✅ Web service URL configured:', passJsonProps.webServiceURL);
-    console.log('✅ Authentication token generated for user:', user.id);
-  } else {
-    console.log('⚠️  Web service URL not configured (localhost detected)');
-    console.log('   Real-time updates will not work until deployed to production');
-    console.log('   The "Automatic Updates" toggle will not appear');
+  // Add webServiceURL and authenticationToken
+  // These MUST be in pass.json for the toggles to appear and for device registration
+  // Note: On localhost, Apple's servers cannot reach the URL, so automatic updates won't work
+  // but the pass will still register, allowing updates to work once deployed to production
+  passJsonProps.webServiceURL = `${baseUrl}/api/pass`;
+  passJsonProps.authenticationToken = generateAuthToken(user.id);
+  console.log('✅ Web service URL configured:', passJsonProps.webServiceURL);
+  console.log('✅ Authentication token generated for user:', user.id);
+  
+  if (baseUrl === 'http://localhost:3000') {
+    console.log('⚠️  Running on localhost - Apple servers cannot reach this URL');
+    console.log('   Automatic updates will not work until deployed to production');
+    console.log('   Re-download the pass to see updated points during development');
   }
 
   // Initialize the Pass

@@ -12,12 +12,13 @@
  * Environment Variables Required:
  * - APNS_KEY_ID: Your APNs key ID
  * - APNS_TEAM_ID: Your Apple Team ID
- * - APNS_KEY_PATH: Path to your APNs key file (.p8)
- * - APNS_BUNDLE_ID: Your Pass Type ID (e.g., pass.com.vigocoffee.loyalty)
+ * - APNS_KEY_BASE64: Your APNs key file (.p8) encoded as Base64
  * - APNS_PRODUCTION: true for production, false for sandbox
+ * - PASS_TYPE_ID: Your Pass Type ID (e.g., pass.com.vigocoffee.loyalty)
  */
 
 import { createClient } from '@/lib/supabase/server';
+import apn from 'node-apn';
 
 /**
  * Sends push notification to all devices registered for a pass
@@ -52,48 +53,62 @@ export async function notifyPassUpdate(
       return 0;
     }
 
-    // TODO: Implement APNs push notification
-    // For now, we'll log what would be sent
-    console.log(`📱 Would send push notifications to ${registrations.length} devices for pass ${serialNumber}`);
-    
-    // When APNs is configured, uncomment and implement:
-    /*
-    const apn = require('node-apn');
-    
-    const options = {
-      token: {
-        key: process.env.APNS_KEY_PATH,
-        keyId: process.env.APNS_KEY_ID,
-        teamId: process.env.APNS_TEAM_ID,
-      },
-      production: process.env.APNS_PRODUCTION === 'true',
-    };
-    
-    const apnProvider = new apn.Provider(options);
-    
-    // Create notification for each device
-    const notifications = registrations.map(reg => {
-      const notification = new apn.Notification();
-      notification.topic = passTypeIdentifier;
-      notification.expiry = Math.floor(Date.now() / 1000) + 3600; // 1 hour
-      notification.sound = 'default';
-      notification.alert = 'Your loyalty card has been updated!';
-      notification.payload = { 'aps': { 'content-available': 1 } };
-      
-      return apnProvider.send(notification, reg.push_token);
-    });
-    
-    await Promise.all(notifications);
-    apnProvider.shutdown();
-    */
+    // Check if APNs is configured
+    if (!isPushNotificationsConfigured()) {
+        console.log(`⚠️  APNs not configured, skipping push notification for pass ${serialNumber}`);
+        console.log(`📱 Would send push notifications to ${registrations.length} devices`);
+        return registrations.length;
+    }
 
-    return registrations.length;
+    try {
+        // Convert Base64 key to Buffer (for Vercel/serverless compatibility)
+        const keyBuffer = Buffer.from(process.env.APNS_KEY_BASE64 || '', 'base64');
+        const options = {
+            token: {
+                key: keyBuffer,
+                keyId: process.env.APNS_KEY_ID || '',
+                teamId: process.env.APNS_TEAM_ID || '',
+            },
+            production: process.env.APNS_PRODUCTION === 'true',
+        };
+
+        const apnProvider = new apn.Provider(options);
+
+        // Create notification for each device
+        const notifications = registrations.map(reg => {
+            const notification = new apn.Notification();
+            notification.topic = passTypeIdentifier;
+            notification.expiry = Math.floor(Date.now() / 1000) + 3600; // 1 hour
+            notification.sound = 'default';
+            notification.alert = 'Your loyalty card has been updated!';
+            notification.payload = { 'aps': { 'content-available': 1 } };
+            
+            return apnProvider.send(notification, reg.push_token);
+        });
+
+        const results = await Promise.all(notifications);
+        apnProvider.shutdown();
+        
+        const successCount = results.filter(result => result.sent).length;
+        const failedCount = results.filter(result => !result.sent).length;
+
+        if (successCount > 0) {
+            console.log(`✅ Push notifications sent to ${successCount} devices for pass ${serialNumber}`);
+        }
+        if (failedCount > 0) {
+            console.warn(`⚠️  Failed to send push notifications to ${failedCount} devices`);
+        }
+
+        return successCount;
+    } catch (apnsError: any) {
+        console.error('❌ Error sending APNs push notifications:', apnsError);
+        return 0;
+    }
   } catch (error: any) {
-    console.error('Error sending push notifications:', error);
+    console.error('Error in notifyPassUpdate:', error);
     return 0;
   }
 }
-
 /**
  * Sends push notification when a reward is earned
  * 
@@ -114,7 +129,7 @@ export async function notifyRewardEarned(
   
   // Send update notification (device will fetch latest pass)
   await notifyPassUpdate(serialNumber, passTypeIdentifier);
-  
+
   // TODO: When APNs is configured, you can send a custom alert:
   /*
   // Custom alert for reward (requires APNs implementation)
@@ -133,7 +148,7 @@ export function isPushNotificationsConfigured(): boolean {
   return !!(
     process.env.APNS_KEY_ID &&
     process.env.APNS_TEAM_ID &&
-    process.env.APNS_KEY_PATH &&
+    process.env.APNS_KEY_BASE64 &&
     process.env.PASS_TYPE_ID
   );
 }
