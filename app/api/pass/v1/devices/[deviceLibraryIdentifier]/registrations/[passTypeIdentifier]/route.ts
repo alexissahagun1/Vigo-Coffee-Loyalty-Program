@@ -66,29 +66,22 @@ export async function GET(
 
     const serialNumbers = registrations?.map(r => r.serial_number) || [];
     
-    // For "What changed?" requests, we need to include lastUpdated timestamp
+    // Apple requires lastUpdated when returning serial numbers in "What changed?" requests
+    // We'll always include it when there are serial numbers to avoid the error
     let response: { serialNumbers: string[]; lastUpdated?: string } = { serialNumbers };
     
-    if (isWhatChangedRequest && serialNumbers.length > 0) {
-      // Get the most recent updated_at timestamp from profiles for these passes
-      // Use service role client to bypass RLS
-      const serviceSupabase = createServiceRoleClient();
-      const { data: profiles, error: profilesError } = await serviceSupabase
-        .from('profiles')
-        .select('id')
-        .in('id', serialNumbers);
+    // Include lastUpdated if this is a "What changed?" request OR if we have serial numbers
+    // (Apple may send "What changed?" requests without the query parameter in some cases)
+    if (serialNumbers.length > 0) {
+      // Use current time as lastUpdated
+      // In a production system, you'd track the actual last update time per pass
+      const lastUpdated = new Date().toISOString();
+      response.lastUpdated = lastUpdated;
       
-      if (!profilesError && profiles && profiles.length > 0) {
-        // Get the most recent updated_at from the profiles
-        // Since profiles table doesn't have updated_at, we'll use current time
-        // In a real scenario, you'd track when passes were last updated
-        const lastUpdated = new Date().toISOString();
-        response.lastUpdated = lastUpdated;
-        console.log(`[${timestamp}] ✅ Added lastUpdated: ${lastUpdated}`);
+      if (isWhatChangedRequest) {
+        console.log(`[${timestamp}] ✅ Added lastUpdated for "What changed?" request: ${lastUpdated}`);
       } else {
-        // Fallback: use current time if we can't fetch profile timestamps
-        response.lastUpdated = new Date().toISOString();
-        console.log(`[${timestamp}] ⚠️  Using current time as lastUpdated (could not fetch profile timestamps)`);
+        console.log(`[${timestamp}] ✅ Added lastUpdated (preventive): ${lastUpdated}`);
       }
     }
     
