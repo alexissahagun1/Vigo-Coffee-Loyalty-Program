@@ -26,6 +26,8 @@ export default function ScanPage() {
     const [success, setSuccess] = useState<string | null>(null);
     const [isScanning, setIsScanning] = useState(false);
     const [cameraPermission, setCameraPermission] = useState<"requesting" | "granted" | "denied" | null>(null);
+    const [isScanningActive, setIsScanningActive] = useState(false);
+    const [scanAttempts, setScanAttempts] = useState(0);
     
     const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
     const scannerContainerRef = useRef<HTMLDivElement>(null);
@@ -78,25 +80,54 @@ export default function ScanPage() {
             const html5QrCode = new Html5Qrcode("qr-reader");
             html5QrCodeRef.current = html5QrCode;
 
-            // Start scanning with back camera
+            // Calculate optimal QR box size - use 85% of viewport for maximum scanning area
+            const getOptimalQrBoxSize = (viewfinderWidth: number, viewfinderHeight: number) => {
+                // Use 85% of the smaller dimension for optimal balance between scanning area and performance
+                const size = Math.min(viewfinderWidth, viewfinderHeight) * 0.85;
+                // Ensure minimum size for small screens and maximum for large screens
+                const minSize = 250;
+                const maxSize = 600;
+                return Math.max(minSize, Math.min(maxSize, size));
+            };
+
+            // Start scanning with back camera - optimized for mobile performance
             await html5QrCode.start(
                 cameraId,
                 {
-                    fps: 10,
-                    qrbox: { width: 300, height: 300 },
-                    aspectRatio: 1.0,
+                    fps: 48, // High FPS for fast scanning (48 is optimal for mobile - balances speed and battery)
+                    qrbox: (viewfinderWidth, viewfinderHeight) => {
+                        const size = getOptimalQrBoxSize(viewfinderWidth, viewfinderHeight);
+                        return {
+                            width: size,
+                            height: size
+                        };
+                    },
+                    aspectRatio: 1.0, // Square aspect ratio for QR codes
+                    disableFlip: false, // Allow QR codes in any orientation for faster scanning
+                    // Video constraints optimized for mobile devices
+                    videoConstraints: {
+                        facingMode: "environment", // Force back camera
+                        width: { ideal: 1920, min: 1280 }, // Higher resolution for better QR code detection
+                        height: { ideal: 1080, min: 720 },
+                    }
                 },
                 (decodedText) => {
-                    // QR code scanned successfully
+                    // QR code scanned successfully - stop immediately to prevent duplicate scans
+                    setScanAttempts(prev => prev + 1);
                     handleScan(decodedText.trim());
                 },
                 (errorMessage) => {
                     // Ignore scan errors (normal when no QR code in view)
+                    // Only log if it's an actual error, not just "not found"
+                    if (!errorMessage.includes("NotFoundException")) {
+                        // Silently ignore - these are expected during scanning
+                    }
                 }
             );
 
             setCameraPermission("granted");
             setIsScanning(true);
+            setIsScanningActive(true);
         } catch (err: any) {
             console.error("Error starting scanner:", err);
             setCameraPermission("denied");
@@ -118,6 +149,7 @@ export default function ScanPage() {
             html5QrCodeRef.current = null;
         }
         setIsScanning(false);
+        setIsScanningActive(false);
     };
 
     // Auto-start scanning on mount
@@ -220,10 +252,11 @@ export default function ScanPage() {
         setCustomer(null);
         setError(null);
         setSuccess(null);
+        setScanAttempts(0);
         await stopScanning();
         
-        // Restart scanning after a brief delay
-        setTimeout(() => startScanning(), 500);
+        // Restart scanning after a brief delay to allow cleanup
+        setTimeout(() => startScanning(), 300);
     };
 
     return (
@@ -235,15 +268,32 @@ export default function ScanPage() {
                     <Card className="bg-gray-800 border-gray-700">
                         <CardContent className="p-4">
                             {/* Scanner container */}
-                            <div 
-                                ref={scannerContainerRef}
-                                id="qr-reader" 
-                                className="mb-4 w-full rounded-lg overflow-hidden bg-black"
-                                style={{ 
-                                    minHeight: '400px',
-                                    width: '100%'
-                                }}
-                            ></div>
+                            <div className="relative">
+                                <div 
+                                    ref={scannerContainerRef}
+                                    id="qr-reader" 
+                                    className="mb-4 w-full rounded-lg overflow-hidden bg-black"
+                                    style={{ 
+                                        minHeight: '400px',
+                                        width: '100%'
+                                    }}
+                                ></div>
+                                
+                                {/* Scanning indicator - shows when actively scanning */}
+                                {isScanning && isScanningActive && (
+                                    <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-500/90 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg z-10 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                                        Scanning...
+                                    </div>
+                                )}
+                                
+                                {/* Scan attempts counter (for debugging) */}
+                                {scanAttempts > 0 && process.env.NODE_ENV === 'development' && (
+                                    <div className="absolute bottom-4 right-4 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                                        Attempts: {scanAttempts}
+                                    </div>
+                                )}
+                            </div>
                             
                             {/* Camera permission status */}
                             {cameraPermission === "requesting" && (
