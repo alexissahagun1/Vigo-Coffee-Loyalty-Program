@@ -4,6 +4,9 @@ import { useEffect, useState, useRef } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+
 
 interface CustomerData {
     id: string;
@@ -28,9 +31,97 @@ export default function ScanPage() {
     const [cameraPermission, setCameraPermission] = useState<"requesting" | "granted" | "denied" | null>(null);
     const [isScanningActive, setIsScanningActive] = useState(false);
     const [scanAttempts, setScanAttempts] = useState(0);
+    const [isEmployee, setIsEmployee] = useState<boolean | null>(null); // null = checking, true = is employee, false = not employee
     
     const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
     const scannerContainerRef = useRef<HTMLDivElement>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const router = useRouter();
+
+    useEffect(() => {
+        const checkEmployee = async () => {
+            try {
+                const supabase = createClient();
+
+                // Get current user
+                const userResult = await supabase.auth.getUser();
+                const user  = userResult.data.user;
+
+                if (!user) {
+                    // No user, redirect to login
+                    router.push("/auth/employee/login");
+                    return;
+                }
+
+                // Check if user is an employee using API endpoint (bypasses RLS)
+                // RLS blocks direct client queries to employees table
+                const checkResponse = await fetch('/api/auth/employee/check');
+                const checkData = await checkResponse.json();
+
+                if (!checkResponse.ok || !checkData.success || !checkData.isEmployee) {
+                    router.push("/auth/employee/login");
+                    return;
+                }
+
+                // If everything is good, set isEmployee to true
+                setIsEmployee(true);
+            } catch (err) {
+                // If check fails, redirect to login
+                console.error("Error checking employee status:", err);
+                router.push("/auth/employee/login");
+            }
+        };
+
+        checkEmployee();
+    
+    }, [router]); // Include router in dependencies
+
+    // Auto-start scanning only after employee check passes
+    // This useEffect must be called before any early returns to follow Rules of Hooks
+    useEffect(() => {
+        // Don't start scanning until we know user is an employee
+        if (isEmployee !== true) {
+            return;
+        }
+        
+        let isMounted = true;
+        
+        const start = async () => {
+            if (isMounted) {
+                await startScanning();
+            }
+        };
+        
+        start();
+        
+        return () => {
+            isMounted = false;
+            stopScanning();
+            // Clean up any pending timeouts
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+        };
+    }, [isEmployee]); // Run when isEmployee changes
+
+    // Dont render anything until we've checked employee status
+
+    if (isEmployee === null) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white flex items-center justify-center">
+                <div className="text-center">
+                    <p className="text-lg">Checking access...</p>
+                </div>
+            </div>
+        );
+    }
+    
+    // If not an employee, don't render (redirect is happening)
+    if (isEmployee === false) {
+        return null;
+    }
+
 
     // Function to get back camera ID
     const getBackCameraId = async (): Promise<string | null> => {
@@ -62,8 +153,8 @@ export default function ScanPage() {
 
     // Start scanning with automatic camera permission request
     const startScanning = async () => {
-        // If already scanning, don't start again
-        if (isScanning) {
+        // If already scanning, don't start again (check both state and ref)
+        if (isScanning || html5QrCodeRef.current) {
             return;
         }
 
@@ -77,6 +168,7 @@ export default function ScanPage() {
                 throw new Error("No camera found");
             }
 
+            // Create new scanner instance (we already checked that none exists at line 131)
             const html5QrCode = new Html5Qrcode("qr-reader");
             html5QrCodeRef.current = html5QrCode;
 
@@ -111,12 +203,12 @@ export default function ScanPage() {
                         height: { ideal: 1080, min: 720 },
                     }
                 },
-                (decodedText) => {
+            (decodedText) => {
                     // QR code scanned successfully - stop immediately to prevent duplicate scans
                     setScanAttempts(prev => prev + 1);
                     handleScan(decodedText.trim());
                 },
-                (errorMessage) => {
+            (errorMessage) => {
                     // Ignore scan errors (normal when no QR code in view)
                     // Only log if it's an actual error, not just "not found"
                     if (!errorMessage.includes("NotFoundException")) {
@@ -152,15 +244,6 @@ export default function ScanPage() {
         setIsScanningActive(false);
     };
 
-    // Auto-start scanning on mount
-    useEffect(() => {
-        startScanning();
-
-        return () => {
-            stopScanning();
-        };
-    }, []);
-
     const handleScan = async (userId: string) => {
         setLoading(true);
         setError(null);
@@ -179,8 +262,14 @@ export default function ScanPage() {
         } catch (err: any) {
             setError(err.message || "Failed to scan customer");
             setCustomer(null);
-            // Restart scanning on error
-            setTimeout(() => startScanning(), 2000);
+            // Restart scanning on error - store timeout ID for cleanup
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+            timeoutRef.current = setTimeout(() => {
+                startScanning();
+                timeoutRef.current = null;
+            }, 2000);
         } finally {
             setLoading(false);
         }
@@ -255,16 +344,26 @@ export default function ScanPage() {
         setScanAttempts(0);
         await stopScanning();
         
+        // Clear any existing timeout before setting a new one
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+        
         // Restart scanning after a brief delay to allow cleanup
-        setTimeout(() => startScanning(), 300);
+        // Store timeout in ref so it can be cleaned up on unmount
+        timeoutRef.current = setTimeout(() => {
+            startScanning();
+            timeoutRef.current = null;
+        }, 300);
     };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-            <div className="container mx-auto p-4 max-w-2xl">
+        <div className="container mx-auto p-4 max-w-2xl">
                 <h1 className="text-4xl font-bold mb-6 text-center text-white">Employee Scan</h1>
 
-                {!customer && (
+            {!customer && (
                     <Card className="bg-gray-800 border-gray-700">
                         <CardContent className="p-4">
                             {/* Scanner container */}
@@ -322,11 +421,11 @@ export default function ScanPage() {
                                 </div>
                             )}
                             
-                            {error && (
+                    {error && (
                                 <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">
-                                    {error}
-                                </div>
-                            )}
+                            {error}
+                        </div>
+                    )}
 
                             {!isScanning && cameraPermission === "granted" && (
                                 <Button 
@@ -337,98 +436,98 @@ export default function ScanPage() {
                                 </Button>
                             )}
                         </CardContent>
-                    </Card>
-                )}
+                </Card>
+            )}
 
-                {customer && (
-                    <div className="space-y-4">
+            {customer && (
+                <div className="space-y-4">
                         <Card className="bg-gray-800 border-gray-700">
-                            <CardHeader>
+                        <CardHeader>
                                 <CardTitle className="text-white">Customer Information</CardTitle>
-                            </CardHeader>
-                            <CardContent>
+                        </CardHeader>
+                        <CardContent>
                                 <div className="space-y-2 text-white">
-                                    <p><strong>Name:</strong> {customer.name}</p>
-                                    <p><strong>Points Balance:</strong> {customer.points} pts</p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                <p><strong>Name:</strong> {customer.name}</p>
+                                <p><strong>Points Balance:</strong> {customer.points} pts</p>
+                            </div>
+                        </CardContent>
+                    </Card>
 
                         <Card className="bg-gray-800 border-gray-700">
-                            <CardHeader>
+                        <CardHeader>
                                 <CardTitle className="text-white">Available Rewards</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {customer.availableRewards.coffees.length === 0 && 
-                                 customer.availableRewards.meals.length === 0 && (
+                        </CardHeader>
+                        <CardContent>
+                            {customer.availableRewards.coffees.length === 0 && 
+                             customer.availableRewards.meals.length === 0 && (
                                     <p className="text-gray-400">No rewards available</p>
-                                )}
+                            )}
 
-                                <div className="space-y-2 mb-4">
-                                    {customer.availableRewards.coffees.map((points) => (
-                                        <Button
+                            <div className="space-y-2 mb-4">
+                                {customer.availableRewards.coffees.map((points) => (
+                                    <Button
                                             key={`coffee-${points}`}
                                             onClick={() => handleRedeem("coffee", points)}
                                             disabled={loading}
                                             className="w-full bg-blue-600 hover:bg-blue-700"
-                                        >
-                                            Redeem Coffee ({points} pts)
-                                        </Button>
-                                    ))}
-                                    
-                                    {customer.availableRewards.meals.map((points) => (
-                                        <Button
+                                    >
+                                        Redeem Coffee ({points} pts)
+                                    </Button>
+                                ))}
+                                
+                                {customer.availableRewards.meals.map((points) => (
+                                    <Button
                                             key={`meal-${points}`}
                                             onClick={() => handleRedeem("meal", points)}
                                             disabled={loading}
                                             className="w-full bg-green-600 hover:bg-green-700"
-                                        >
-                                            Redeem Meal ({points} pts)
-                                        </Button>
-                                    ))}
-                                </div>
-                            </CardContent>
-                        </Card>
+                                    >
+                                        Redeem Meal ({points} pts)
+                                    </Button>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
 
                         <Card className="bg-gray-800 border-gray-700">
-                            <CardHeader>
+                        <CardHeader>
                                 <CardTitle className="text-white">Actions</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-2">
-                                    <Button
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2">
+                                <Button
                                         onClick={handlePurchase}
                                         disabled={loading}
                                         className="w-full bg-purple-600 hover:bg-purple-700"
-                                    >
-                                        Add Purchase (+1 point)
-                                    </Button>
-                                    
-                                    <Button
+                                >
+                                    Add Purchase (+1 point)
+                                </Button>
+                                
+                                <Button
                                         onClick={resetScan}
                                         disabled={loading}
                                         variant="outline"
                                         className="w-full border-gray-600 text-white hover:bg-gray-700"
-                                    >
-                                        Scan Another Customer
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                >
+                                    Scan Another Customer
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                        {success && (
+                    {success && (
                             <div className="bg-green-900 border border-green-700 text-green-200 px-4 py-3 rounded">
-                                {success}
-                            </div>
-                        )}
+                            {success}
+                        </div>
+                    )}
 
-                        {error && (
+                    {error && (
                             <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded">
-                                {error}
-                            </div>
-                        )}
-                    </div>
-                )}
+                            {error}
+                        </div>
+                    )}
+                </div>
+            )}
             </div>
         </div>
     );

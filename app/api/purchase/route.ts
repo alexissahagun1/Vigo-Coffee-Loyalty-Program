@@ -51,23 +51,32 @@ export async function POST(req: NextRequest) {
         const newTotalPurchases = currentPurchases + 1;
 
         // Check if customer earned a reward
+        // Note: Customer can earn BOTH meal and coffee at overlapping thresholds (50, 100, etc.)
         let rewardEarned = false;
         let rewardType = null;
+        let earnedMeal = false;
+        let earnedCoffee = false;
 
         // Check meal first (higher value reward)
         if (newPointsBalance >= POINTS_FOR_MEAL && newPointsBalance % POINTS_FOR_MEAL === 0) {
+            earnedMeal = true;
             rewardEarned = true;
-            rewardType = 'meal';
+            rewardType = 'meal'; // Prioritize meal for notification
         }
-        // Then check coffee
-        else if (newPointsBalance >= POINTS_FOR_COFFEE && newPointsBalance % POINTS_FOR_COFFEE === 0) {
-            rewardEarned = true;
-            rewardType = 'coffee';
+        
+        // Check coffee (can be earned simultaneously with meal at 50, 100, etc.)
+        if (newPointsBalance >= POINTS_FOR_COFFEE && newPointsBalance % POINTS_FOR_COFFEE === 0) {
+            earnedCoffee = true;
+            // Only set rewardEarned/rewardType if meal wasn't already earned
+            // (meal takes priority for notification, but both are available)
+            if (!earnedMeal) {
+                rewardEarned = true;
+                rewardType = 'coffee';
+            }
         }
-        else {
-            rewardEarned = false;
-            rewardType = null;
-        }
+        
+        // If both rewards earned, prioritize meal notification but both are available
+        // The scan page will show both as available rewards
         // Update customer profile in database
         // Try with updated_at first, fallback without it if schema cache hasn't refreshed
         let updateResult = await supabase
@@ -121,6 +130,16 @@ export async function POST(req: NextRequest) {
             console.error('⚠️  Push notification failed (non-critical):', notificationError?.message);
         }
 
+        // Build success message
+        let message = `Purchase recorded! ${updatedProfile.full_name || 'Customer'} New balance: ${updatedProfile.points_balance} points`;
+        if (earnedMeal && earnedCoffee) {
+            message += ' 🎉 You earned BOTH a FREE MEAL and FREE COFFEE!';
+        } else if (earnedMeal) {
+            message += ' 🎉 You earned a FREE MEAL!';
+        } else if (earnedCoffee) {
+            message += ' 🎉 You earned a FREE COFFEE!';
+        }
+
         // Return success response
         return NextResponse.json({
             success: true,
@@ -132,8 +151,10 @@ export async function POST(req: NextRequest) {
             },
             pointsEarned: POINTS_PER_PURCHASE,
             rewardEarned: rewardEarned,
-            rewardType: rewardType,
-            message: `Purchase recorded!  ${updatedProfile.full_name} New balance: ${updatedProfile.points_balance} points`,
+            rewardType: rewardType, // 'meal' or 'coffee' (prioritized for notification)
+            earnedMeal: earnedMeal, // true if meal reward earned
+            earnedCoffee: earnedCoffee, // true if coffee reward earned
+            message: message,
         });
 
 
