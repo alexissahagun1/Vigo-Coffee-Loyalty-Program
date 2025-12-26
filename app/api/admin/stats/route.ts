@@ -6,49 +6,86 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = createServiceRoleClient();
 
-    // Get total customers
-    const { count: totalCustomers } = await supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true });
+    // Run all independent queries in parallel for better performance
+    const [
+      { count: totalCustomers },
+      { count: totalEmployees },
+      { count: activeEmployees },
+      { data: profilesData },
+      { count: pendingInvitations },
+      { data: topCustomers },
+    ] = await Promise.all([
+      // Get total customers
+      supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true }),
+      
+      // Get total employees
+      supabase
+        .from('employees')
+        .select('*', { count: 'exact', head: true }),
+      
+      // Get active employees
+      supabase
+        .from('employees')
+        .select('*', { count: 'exact', head: true })
+        .eq('is_active', true),
+      
+      // Get all profile data needed for calculations (points, purchases, rewards)
+      supabase
+        .from('profiles')
+        .select('points_balance, total_purchases, redeemed_rewards'),
+      
+      // Get pending invitations
+      supabase
+        .from('employee_invitations')
+        .select('*', { count: 'exact', head: true })
+        .is('used_at', null)
+        .gt('expires_at', new Date().toISOString()),
+      
+      // Get top customers by points
+      supabase
+        .from('profiles')
+        .select('id, full_name, points_balance, total_purchases')
+        .order('points_balance', { ascending: false })
+        .limit(10),
+    ]);
 
-    // Get total employees
-    const { count: totalEmployees } = await supabase
-      .from('employees')
-      .select('*', { count: 'exact', head: true });
+    // Calculate totals from the profiles data
+    const totalPoints = profilesData?.reduce((sum, p) => sum + (p.points_balance || 0), 0) || 0;
+    const totalPurchases = profilesData?.reduce((sum, p) => sum + (Number(p.total_purchases) || 0), 0) || 0;
 
-    // Get active employees
-    const { count: activeEmployees } = await supabase
-      .from('employees')
-      .select('*', { count: 'exact', head: true })
-      .eq('is_active', true);
+    // Calculate rewards redeemed
+    const profilesWithRewards = profilesData;
 
-    // Get total points across all customers
-    const { data: pointsData } = await supabase
-      .from('profiles')
-      .select('points_balance');
+    let rewardsRedeemed = 0;
+    let coffeeRewardsRedeemed = 0;
+    let mealRewardsRedeemed = 0;
 
-    const totalPoints = pointsData?.reduce((sum, p) => sum + (p.points_balance || 0), 0) || 0;
+    if (profilesWithRewards) {
+      profilesWithRewards.forEach((profile) => {
+        const redeemed = profile.redeemed_rewards || { coffees: [], meals: [] };
+        if (Array.isArray(redeemed.coffees)) {
+          coffeeRewardsRedeemed += redeemed.coffees.length;
+        }
+        if (Array.isArray(redeemed.meals)) {
+          mealRewardsRedeemed += redeemed.meals.length;
+        }
+      });
+      rewardsRedeemed = coffeeRewardsRedeemed + mealRewardsRedeemed;
+    }
 
-    // Get total purchases
-    const { data: purchasesData } = await supabase
-      .from('profiles')
-      .select('total_purchases');
-
-    const totalPurchases = purchasesData?.reduce((sum, p) => sum + (Number(p.total_purchases) || 0), 0) || 0;
-
-    // Get pending invitations
-    const { count: pendingInvitations } = await supabase
-      .from('employee_invitations')
-      .select('*', { count: 'exact', head: true })
-      .is('used_at', null)
-      .gt('expires_at', new Date().toISOString());
-
-    // Get top customers by points
-    const { data: topCustomers } = await supabase
-      .from('profiles')
-      .select('id, full_name, points_balance, total_purchases')
-      .order('points_balance', { ascending: false })
-      .limit(10);
+    // Calculate reward progress percentages (simplified - could be more sophisticated)
+    // For coffee: assume max potential is totalPoints / 10
+    // For meal: assume max potential is totalPoints / 25
+    const maxCoffeeRewards = totalPoints > 0 ? Math.floor(totalPoints / 10) : 0;
+    const maxMealRewards = totalPoints > 0 ? Math.floor(totalPoints / 25) : 0;
+    const coffeeRewardsProgress = maxCoffeeRewards > 0 
+      ? Math.min(100, Math.round((coffeeRewardsRedeemed / maxCoffeeRewards) * 100))
+      : 0;
+    const mealRewardsProgress = maxMealRewards > 0
+      ? Math.min(100, Math.round((mealRewardsRedeemed / maxMealRewards) * 100))
+      : 0;
 
     return NextResponse.json({
       success: true,
@@ -60,6 +97,11 @@ export async function GET(req: NextRequest) {
         totalPurchases,
         pendingInvitations: pendingInvitations || 0,
         topCustomers: topCustomers || [],
+        rewardsRedeemed,
+        coffeeRewardsRedeemed,
+        mealRewardsRedeemed,
+        coffeeRewardsProgress,
+        mealRewardsProgress,
       },
     });
 

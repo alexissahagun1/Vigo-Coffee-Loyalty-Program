@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .limit(100);
 
     if (error) {
