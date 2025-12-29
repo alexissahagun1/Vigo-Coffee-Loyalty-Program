@@ -96,6 +96,27 @@ export function JoinLoyaltyForm() {
 
       if (profileResult.error) throw profileResult.error;
 
+      // Verify profile was created successfully by fetching it back
+      // This ensures the profile is committed to the database before redirecting
+      const { data: verifyProfile, error: verifyError } = await supabase
+        .from('profiles')
+        .select('id, full_name, points_balance')
+        .eq('id', userId)
+        .single();
+
+      if (verifyError || !verifyProfile) {
+        throw new Error('Profile created but could not be verified. Please try again.');
+      }
+
+      // Ensure full_name is set (critical for pass generation)
+      if (!verifyProfile.full_name || !verifyProfile.full_name.trim()) {
+        // Update with full_name if somehow it's missing
+        await supabase
+          .from('profiles')
+          .update({ full_name: trimmedFullName })
+          .eq('id', userId);
+      }
+
       // Update rate limit tracking
       localStorage.setItem('signupCount', (signupCount + 1).toString());
       localStorage.setItem('lastSignup', now.toString());
@@ -103,10 +124,11 @@ export function JoinLoyaltyForm() {
       // Show success and redirect to wallet download
       setSuccess(true);
       
-      // Wait a moment then redirect
+      // Wait longer to ensure profile is fully committed and accessible
+      // Increased from 1500ms to 2000ms to account for email/phone field writes
       setTimeout(() => {
         window.location.href = '/api/wallet';
-      }, 1500);
+      }, 2000);
 
     } catch (error: any) {
       setError(error.message || 'Something went wrong. Please try again.');
