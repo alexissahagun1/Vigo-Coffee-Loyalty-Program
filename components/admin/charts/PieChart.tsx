@@ -71,7 +71,7 @@ export function PieChart({
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "6px",
               }}
-              formatter={(value: number) => [value, "Count"]}
+              formatter={(value: number | undefined) => [value ?? 0, "Count"]}
             />
             <Legend />
           </RechartsPieChart>
