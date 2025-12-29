@@ -235,6 +235,34 @@ export async function GET(req: NextRequest) {
       console.log(`   heroImage structure:`, JSON.stringify(loyaltyObject.heroImage, null, 2));
     }
     
+    // Log the exact request body that will be sent to Google Wallet API
+    console.log(`🔍 Request Body to Google Wallet API:`);
+    console.log(JSON.stringify(loyaltyObject, null, 2));
+    
+    // Test if the image URL is accessible before sending to Google Wallet
+    if (loyaltyObject.heroImage?.sourceUri?.uri) {
+      const testUrl = loyaltyObject.heroImage.sourceUri.uri;
+      console.log(`🔍 Testing image URL accessibility: ${testUrl}`);
+      try {
+        const testResponse = await fetch(testUrl, { 
+          method: 'HEAD',
+          headers: {
+            'User-Agent': 'Google-Wallet-API-Test/1.0'
+          }
+        });
+        console.log(`   Response status: ${testResponse.status}`);
+        console.log(`   Content-Type: ${testResponse.headers.get('content-type')}`);
+        console.log(`   Content-Length: ${testResponse.headers.get('content-length')}`);
+        if (!testResponse.ok) {
+          console.error(`   ❌ Image URL returned status ${testResponse.status}`);
+        } else {
+          console.log(`   ✅ Image URL is accessible`);
+        }
+      } catch (fetchError: any) {
+        console.error(`   ❌ Failed to fetch image URL: ${fetchError.message}`);
+      }
+    }
+    
     try {
       // Try to get existing pass first
       try {
@@ -242,6 +270,7 @@ export async function GET(req: NextRequest) {
           resourceId: objectId,
         });
         // Pass exists, update it instead
+        console.log(`📝 Updating existing Google Wallet pass with object ID: ${objectId}`);
         await wallet.loyaltyobject.update({
           resourceId: objectId,
           requestBody: loyaltyObject,
