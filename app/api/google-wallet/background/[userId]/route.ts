@@ -45,7 +45,8 @@ export async function GET(
     
     // Return image with cache-busting headers
     // The timestamp query param in the URL already handles cache busting
-    return new NextResponse(backgroundBuffer, {
+    // Convert Buffer to Uint8Array for NextResponse compatibility
+    return new NextResponse(new Uint8Array(backgroundBuffer), {
       headers: {
         'Content-Type': 'image/png',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
