@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient, createClient } from "@/lib/supabase/server";
 import { notifyPassUpdate, notifyRewardEarned } from "@/lib/passkit/push-notifications";
+import { updateGoogleWalletPass } from "@/lib/google-wallet/pass-updater";
 import { requireEmployeeAuth } from "@/lib/auth/employee-auth";
 
 const POINTS_PER_PURCHASE = 1; // 1 point per purchase
@@ -178,6 +179,19 @@ export async function POST(req: NextRequest) {
         } catch (notificationError: any) {
             // Don't fail the purchase if notifications fail
             console.error('⚠️  Push notification failed (non-critical):', notificationError?.message);
+        }
+
+        // Update Google Wallet pass (if user has one)
+        try {
+            await updateGoogleWalletPass(customerId, {
+                id: customerId,
+                full_name: updatedProfile.full_name,
+                points_balance: updatedProfile.points_balance,
+                redeemed_rewards: updatedProfile.redeemed_rewards,
+            });
+        } catch (googleWalletError: any) {
+            // Don't fail the purchase if Google Wallet update fails
+            console.error('⚠️  Google Wallet update failed (non-critical):', googleWalletError?.message);
         }
 
         // Build success message
