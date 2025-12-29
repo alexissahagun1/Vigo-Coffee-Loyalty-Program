@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { calculateCustomerLifetimeValue, Customer, Transaction } from "@/lib/analytics/prediction";
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "50");
     const averagePurchaseValue = parseFloat(searchParams.get("averagePurchaseValue") || "1");
 

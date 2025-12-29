@@ -8,11 +8,9 @@ import {
   CustomerData,
 } from "@/lib/analytics/segmentation";
 
-export const dynamic = 'force-dynamic';
-
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const searchParams = req.nextUrl.searchParams;
     const method = searchParams.get("method") || "rules"; // rules, kmeans, rfm
 
     const supabase = createServiceRoleClient();

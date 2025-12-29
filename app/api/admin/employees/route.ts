@@ -117,11 +117,11 @@ export async function PUT(req: NextRequest) {
 // DELETE - Delete employee (soft delete by setting is_active to false)
 export async function DELETE(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const searchParams = req.nextUrl.searchParams;
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json(
+      return NextResponse.js
         { error: "Employee ID is required" },
         { status: 400 }
       );
