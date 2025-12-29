@@ -16,6 +16,7 @@ interface Customer {
   id: string;
   full_name: string | null;
   email: string | null;
+  phone: string | null;
   points_balance: number;
   total_purchases: number;
   updated_at?: string;
@@ -84,6 +85,11 @@ export function CustomerTable({ customers }: CustomerTableProps) {
                       <p className="text-xs text-muted-foreground">
                         {customer.email?.trim() || 'No email'}
                       </p>
+                      {customer.phone && (
+                        <p className="text-xs text-muted-foreground">
+                          {customer.phone.trim()}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </TableCell>

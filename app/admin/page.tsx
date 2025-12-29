@@ -26,6 +26,7 @@ import { EmployeeTable } from "@/components/admin/EmployeeTable";
 import { InvitationTable } from "@/components/admin/InvitationTable";
 import { TopCustomers } from "@/components/admin/TopCustomers";
 import { InviteForm } from "@/components/admin/InviteForm";
+import { CustomerForm } from "@/components/admin/CustomerForm";
 import { AnalyticsOverview } from "@/components/admin/AnalyticsOverview";
 import { createClient } from "@/lib/supabase/client";
 
@@ -145,9 +146,16 @@ export default function AdminPage() {
     queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
   };
 
+  // Refresh data after customer creation
+  const handleCustomerCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-customers'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+  };
+
   const filteredCustomers = customers.filter((c: any) => 
     c.full_name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    c.email?.toLowerCase().includes(customerSearch.toLowerCase())
+    c.email?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.phone?.toLowerCase().includes(customerSearch.toLowerCase())
   );
 
   const filteredEmployees = employees.filter((e: any) => 
@@ -352,13 +360,21 @@ export default function AdminPage() {
                 />
                 </div>
                 </div>
-            {customersLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1">
+                <CustomerForm onCustomerCreated={handleCustomerCreated} />
               </div>
-            ) : (
-              <CustomerTable customers={filteredCustomers} />
-            )}
+              <div className="lg:col-span-2">
+                {customersLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <CustomerTable customers={filteredCustomers} />
+                )}
+              </div>
+            </div>
           </TabsContent>
 
           {/* Employees Tab */}
