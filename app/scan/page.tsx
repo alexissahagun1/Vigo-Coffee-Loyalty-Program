@@ -49,7 +49,7 @@ export default function ScanPage() {
 
                 if (!user) {
                     // No user, redirect to login
-                    router.push("/auth/employee/login");
+                    router.push("/login");
                     return;
                 }
 
@@ -59,7 +59,7 @@ export default function ScanPage() {
                 const checkData = await checkResponse.json();
 
                 if (!checkResponse.ok || !checkData.success || !checkData.isEmployee) {
-                    router.push("/auth/employee/login");
+                    router.push("/login");
                     return;
                 }
 
@@ -68,7 +68,7 @@ export default function ScanPage() {
             } catch (err) {
                 // If check fails, redirect to login
                 console.error("Error checking employee status:", err);
-                router.push("/auth/employee/login");
+                router.push("/login");
             }
         };
 

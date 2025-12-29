@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 // Import the function that creates a Supabase client with service role (bypasses RLS)
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { requireEmployeeAuth } from "@/lib/auth/employee-auth";
 
 // Define constants for reward thresholds
 // These match the values used in the purchase API
@@ -13,6 +14,12 @@ const POINTS_FOR_MEAL = 25; // Customer earns a meal reward every 25 points
 export async function GET(req: NextRequest) {
     // Wrap everything in try-catch to handle any errors gracefully
     try {
+        // SECURITY: Require employee authentication
+        const authError = await requireEmployeeAuth();
+        if (authError) {
+            return authError;
+        }
+
         // Extract the URL search parameters from the request
         // Example: /api/scan?userId=123-456-789
         const searchParams = req.nextUrl.searchParams;

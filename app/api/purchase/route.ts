@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient, createClient } from "@/lib/supabase/server";
 import { notifyPassUpdate, notifyRewardEarned } from "@/lib/passkit/push-notifications";
+import { requireEmployeeAuth } from "@/lib/auth/employee-auth";
 
 const POINTS_PER_PURCHASE = 1; // 1 point per purchase
 const POINTS_FOR_COFFEE = 10; // 10 points for a coffee
@@ -8,6 +9,12 @@ const POINTS_FOR_MEAL = 25; // 25 points for a meal
 
 export async function POST(req: NextRequest) {
     try {
+        // SECURITY: Require employee authentication
+        const authError = await requireEmployeeAuth();
+        if (authError) {
+            return authError;
+        }
+
         // Get customer ID from request body
         const body = await req.json();
         const customerId = body.customerId || body.userId;
@@ -138,7 +145,7 @@ export async function POST(req: NextRequest) {
 
         // Log transaction
         try {
-            await supabase
+            const { error: transactionError } = await supabase
                 .from('transactions')
                 .insert({
                     customer_id: customerId,
@@ -148,6 +155,11 @@ export async function POST(req: NextRequest) {
                     points_balance_after: newPointsBalance,
                     reward_points_threshold: null,
                 });
+            
+            if (transactionError) {
+                // Don't fail the purchase if transaction logging fails
+                console.error('⚠️  Transaction logging failed (non-critical):', transactionError.message, transactionError);
+            }
         } catch (transactionError: any) {
             // Don't fail the purchase if transaction logging fails
             console.error('⚠️  Transaction logging failed (non-critical):', transactionError?.message);

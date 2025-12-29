@@ -298,153 +298,133 @@ export function AnalyticsOverview() {
             </div>
           )}
 
-          {/* Sales Activity */}
-          <div>
-            <AreaChart
-              data={transactionsData}
-              title="Sales Activity"
-              description="Shows how many purchases and rewards were given over time (from transaction logs)"
-              dataKeys={[
-                { key: "purchases", label: "Purchases", color: "hsl(var(--chart-1))" },
-                { key: "redemptions", label: "Rewards Given", color: "hsl(var(--chart-2))" },
-              ]}
-              yAxisLabel="Number of Transactions"
+          {/* Sales Activity and Customer Growth in same row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Sales Activity */}
+            <div>
+              <AreaChart
+                data={transactionsData}
+                title="Sales Activity"
+                description="Shows how many purchases and rewards were given over time (from transaction logs)"
+                dataKeys={[
+                  { key: "purchases", label: "Purchases", color: "hsl(var(--chart-1))" },
+                  { key: "redemptions", label: "Rewards Given", color: "hsl(var(--chart-2))" },
+                ]}
+                yAxisLabel="Number of Transactions"
+                groupBy={groupBy}
+              />
+              {transactionsData.length === 0 && segments?.segments && (
+                <Card className="mt-4 border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+                  <CardContent className="pt-6">
+                    <div className="text-sm">
+                      <p className="font-medium mb-2 text-orange-900 dark:text-orange-100">
+                        ⚠️ Data Discrepancy Notice
+                      </p>
+                      <p className="text-orange-800 dark:text-orange-200 mb-2">
+                        The Sales Activity chart shows no transactions because the transactions table is empty.
+                        However, customer profiles show:
+                      </p>
+                      <ul className="list-disc list-inside space-y-1 text-orange-800 dark:text-orange-200 mb-2">
+                        <li>
+                          <strong>{segments.segments.reduce((sum: number, s: any) => sum + (s.points_balance || 0), 0)} total points</strong> across all customers
+                        </li>
+                        <li>
+                          <strong>{segments.segments.reduce((sum: number, s: any) => sum + (s.total_purchases || 0), 0)} total purchases</strong> recorded in profiles
+                        </li>
+                      </ul>
+                      <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
+                        This suggests purchases were made before transaction logging was enabled. 
+                        New purchases and redemptions will appear in the chart once they're recorded.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Customer Growth */}
+            <LineChart
+              data={growthData}
+              title="New Customers Over Time"
+              description="Shows how many new customers joined each day"
+              dataKey="newCustomers"
+              yAxisLabel="New Customers"
+              groupBy={groupBy}
             />
-            {transactionsData.length === 0 && segments?.segments && (
-              <Card className="mt-4 border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
-                <CardContent className="pt-6">
-                  <div className="text-sm">
-                    <p className="font-medium mb-2 text-orange-900 dark:text-orange-100">
-                      ⚠️ Data Discrepancy Notice
-                    </p>
-                    <p className="text-orange-800 dark:text-orange-200 mb-2">
-                      The Sales Activity chart shows no transactions because the transactions table is empty.
-                      However, customer profiles show:
-                    </p>
-                    <ul className="list-disc list-inside space-y-1 text-orange-800 dark:text-orange-200 mb-2">
-                      <li>
-                        <strong>{segments.segments.reduce((sum: number, s: any) => sum + (s.points_balance || 0), 0)} total points</strong> across all customers
-                      </li>
-                      <li>
-                        <strong>{segments.segments.reduce((sum: number, s: any) => sum + (s.total_purchases || 0), 0)} total purchases</strong> recorded in profiles
-                      </li>
-                    </ul>
-                    <p className="text-xs text-orange-700 dark:text-orange-300 mt-2">
-                      This suggests purchases were made before transaction logging was enabled. 
-                      New purchases and redemptions will appear in the chart once they're recorded.
-                    </p>
+          </div>
+
+          {/* Predictive Insights Section */}
+          <div>
+            <h3 className="text-xl font-display font-bold mb-4">Predictive Insights</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Top Customer Value */}
+            {clv && clv.clvs && clv.clvs.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Top Customer Value</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold mb-2">
+                    ${clv.clvs[0]?.clv?.toFixed(2) || "0.00"}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Highest estimated lifetime value
+                  </p>
+                  <div className="mt-4 text-sm">
+                    <span className="font-medium">{clv.clvs[0]?.customer_name || "Unknown"}</span>
                   </div>
                 </CardContent>
               </Card>
             )}
-          </div>
 
-          {/* Customer Growth */}
-          <LineChart
-            data={growthData}
-            title="New Customers Over Time"
-            description="Shows how many new customers joined each day"
-            dataKey="newCustomers"
-            yAxisLabel="New Customers"
-          />
-
-          {/* Forecast */}
-          {(forecast || (nextPurchase && nextPurchase.predictions)) && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg font-semibold">Expected Sales Next Week</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {forecast?.forecast?.[0]?.value 
-                        ? `Based on past trends, we expect ${forecast.forecast[0].value} sales`
-                        : nextPurchase?.predictions?.length
-                        ? `Based on customer behavior, we expect ${nextPurchase.predictions.filter((p: any) => 
-                            new Date(p.predicted_date) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-                          ).length} purchases in the next 7 days`
-                        : "Insufficient data for forecast"}
-                    </p>
+            {/* Churn Risk */}
+            {churnRisk && churnRisk.atRisk && churnRisk.atRisk.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-semibold">At-Risk Customers</CardTitle>
+                    <AlertTriangle className="w-5 h-5 text-orange-600" />
                   </div>
-                  {forecast?.trend && (
-                    <div className="flex items-center gap-2">
-                      {forecast.trend === "up" && (
-                        <TrendingUp className="w-5 h-5 text-green-600" />
-                      )}
-                      {forecast.trend === "down" && (
-                        <TrendingDown className="w-5 h-5 text-red-600" />
-                      )}
-                      {forecast.trend === "stable" && <Minus className="w-5 h-5 text-gray-600" />}
-                      <span
-                        className={`text-sm font-medium ${
-                          forecast.trend === "up"
-                            ? "text-green-600"
-                            : forecast.trend === "down"
-                            ? "text-red-600"
-                            : "text-gray-600"
-                        }`}
-                      >
-                        {forecast.percentageChange > 0 ? "+" : ""}
-                        {forecast.percentageChange}%
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 text-sm">
-                  {forecast?.historical?.length > 0 ? (
-                    <>
-                      <div className="text-muted-foreground">
-                        Confidence:{" "}
-                        <span className="font-medium capitalize">{forecast.confidence || "low"}</span>
-                      </div>
-                      <div className="text-muted-foreground">
-                        Method:{" "}
-                        <span className="font-medium capitalize">
-                          {forecast.method === "linear" 
-                            ? "Linear Regression (trend-based)" 
-                            : forecast.method === "moving" 
-                            ? "Moving Average (recent average)" 
-                            : forecast.method === "exponential"
-                            ? "Exponential Smoothing (weighted recent)"
-                            : "Linear Regression (default)"}
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold mb-2">{churnRisk.atRisk.length}</div>
+                  <p className="text-sm text-muted-foreground">
+                    Customers who may stop visiting soon
+                  </p>
+                  <div className="mt-4 space-y-2">
+                    {churnRisk.atRisk.slice(0, 3).map((customer: any, idx: number) => (
+                      <div key={idx} className="text-sm">
+                        <span className="font-medium">{customer.customer_name || "Unknown"}</span>
+                        <span className="text-muted-foreground ml-2">
+                          Risk: {customer.risk_score}%
                         </span>
                       </div>
-                      <div className="text-muted-foreground">
-                        Based on:{" "}
-                        <span className="font-medium">
-                          {forecast.historical?.length || 0} days of purchase data
-                        </span>
-                        {" "}from the last 30 days
-                      </div>
-                      {forecast.confidence === "low" && (
-                        <div className="text-xs text-orange-600 dark:text-orange-400 mt-2">
-                          ⚠️ Low confidence: More historical data needed for accurate predictions
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-muted-foreground">
-                        Method:{" "}
-                        <span className="font-medium">Customer Behavior Analysis</span>
-                      </div>
-                      <div className="text-muted-foreground">
-                        Based on:{" "}
-                        <span className="font-medium">
-                          {nextPurchase?.predictions?.length || 0} customer purchase predictions
-                        </span>
-                        {" "}from individual customer patterns
-                      </div>
-                      <div className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-                        ℹ️ Using customer-level predictions when transaction history is unavailable
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Next Purchase Predictions */}
+            {nextPurchase && nextPurchase.predictions && nextPurchase.predictions.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Expected Purchases</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold mb-2">
+                    {nextPurchase.predictions.filter((p: any) => 
+                      new Date(p.predicted_date) <= new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+                    ).length}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Customers likely to purchase in next 2 weeks
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+            </div>
+          </div>
 
           {/* Customer Insights Section */}
           <div>
@@ -491,78 +471,6 @@ export function AnalyticsOverview() {
             />
           )}
 
-          {/* Predictive Analytics Section */}
-          <div>
-            <h3 className="text-xl font-display font-bold mb-4">Predictive Insights</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Churn Risk */}
-              {churnRisk && churnRisk.atRisk && churnRisk.atRisk.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg font-semibold">At-Risk Customers</CardTitle>
-                      <AlertTriangle className="w-5 h-5 text-orange-600" />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold mb-2">{churnRisk.atRisk.length}</div>
-                    <p className="text-sm text-muted-foreground">
-                      Customers who may stop visiting soon
-                    </p>
-                    <div className="mt-4 space-y-2">
-                      {churnRisk.atRisk.slice(0, 3).map((customer: any, idx: number) => (
-                        <div key={idx} className="text-sm">
-                          <span className="font-medium">{customer.customer_name || "Unknown"}</span>
-                          <span className="text-muted-foreground ml-2">
-                            Risk: {customer.risk_score}%
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Next Purchase Predictions */}
-              {nextPurchase && nextPurchase.predictions && nextPurchase.predictions.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg font-semibold">Expected Purchases</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold mb-2">
-                      {nextPurchase.predictions.filter((p: any) => 
-                        new Date(p.predicted_date) <= new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
-                      ).length}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Customers likely to purchase in next 2 weeks
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Customer Lifetime Value */}
-              {clv && clv.clvs && clv.clvs.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg font-semibold">Top Customer Value</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold mb-2">
-                      ${clv.clvs[0]?.clv?.toFixed(2) || "0.00"}
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Highest estimated lifetime value
-                    </p>
-                    <div className="mt-4 text-sm">
-                      <span className="font-medium">{clv.clvs[0]?.customer_name || "Unknown"}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
 
           {/* Export Button */}
           <div className="flex justify-end">

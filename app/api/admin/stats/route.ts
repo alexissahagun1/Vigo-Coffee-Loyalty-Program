@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { requireAdminAuth } from "@/lib/auth/employee-auth";
 
 // GET - Get statistics
 export async function GET(req: NextRequest) {
   try {
+    // SECURITY: Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+      return authError;
+    }
+
     const supabase = createServiceRoleClient();
 
     // Run all independent queries in parallel for better performance

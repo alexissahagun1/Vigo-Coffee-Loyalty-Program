@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
+import { requireAdminAuth } from "@/lib/auth/employee-auth";
 
 // GET - List all customers
 export async function GET(req: NextRequest) {
   try {
+    // SECURITY: Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+      return authError;
+    }
+
     const supabase = createServiceRoleClient();
 
     const { data, error } = await supabase
@@ -33,6 +40,12 @@ export async function GET(req: NextRequest) {
 // POST - Create a new customer
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+      return authError;
+    }
+
     const { fullName, email, phone, birthday } = await req.json();
 
     // Validate full name is required and non-empty

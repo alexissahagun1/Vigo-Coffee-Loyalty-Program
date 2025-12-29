@@ -38,8 +38,27 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+
+      // Wait a moment for session cookies to be fully established
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Check if user is an employee
+      const employeeCheckResponse = await fetch('/api/auth/employee/check');
+      const employeeCheckData = await employeeCheckResponse.json();
+
+      if (employeeCheckResponse.ok && employeeCheckData.success && employeeCheckData.isEmployee) {
+        // User is an employee - check if admin
+        if (employeeCheckData.isAdmin) {
+          // Admin employee - redirect to admin dashboard
+          router.push("/admin");
+        } else {
+          // Regular employee - redirect to scan page
+          router.push("/scan");
+        }
+      } else {
+        // Regular customer - redirect to protected page
+        router.push("/protected");
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
@@ -50,12 +69,12 @@ export function LoginForm({
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account
-          </CardDescription>
-        </CardHeader>
+          <CardHeader>
+            <CardTitle className="text-2xl">Login</CardTitle>
+            <CardDescription>
+              Enter your email and password to login (works for both employees and customers)
+            </CardDescription>
+          </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">

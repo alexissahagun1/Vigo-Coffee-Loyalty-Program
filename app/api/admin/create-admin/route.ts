@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
+import { requireAdminAuth } from "@/lib/auth/employee-auth";
 
 /**
  * Admin API endpoint to create a new admin employee directly
@@ -8,6 +9,12 @@ import { randomBytes } from "crypto";
  */
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Require admin authentication (CRITICAL - this creates admin users!)
+    const authError = await requireAdminAuth();
+    if (authError) {
+      return authError;
+    }
+
     const { email, username, fullName, password } = await req.json();
 
     if (!email || !username) {

@@ -4,12 +4,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient, createClient } from "@/lib/supabase/server";
 // Import the function that sends push notifications to update the Apple Wallet pass
 import { notifyPassUpdate } from "@/lib/passkit/push-notifications";
+import { requireEmployeeAuth } from "@/lib/auth/employee-auth";
 
 // Export a POST handler function that Next.js will call when /api/redeem is accessed
 // This endpoint marks a reward as redeemed without deducting points
 export async function POST(req: NextRequest) {
     // Wrap everything in try-catch to handle any errors gracefully
     try {
+        // SECURITY: Require employee authentication
+        const authError = await requireEmployeeAuth();
+        if (authError) {
+            return authError;
+        }
+
         // Parse the JSON body from the request
         // Expected format: { customerId: "uuid", type: "coffee", points: 10 }
         const body = await req.json();
@@ -167,7 +174,7 @@ export async function POST(req: NextRequest) {
         // Log transaction
         const transactionType = type === 'coffee' ? 'redemption_coffee' : 'redemption_meal';
         try {
-            await supabase
+            const { error: transactionError } = await supabase
                 .from('transactions')
                 .insert({
                     customer_id: customerId,
@@ -177,6 +184,11 @@ export async function POST(req: NextRequest) {
                     points_balance_after: updatedProfile.points_balance,
                     reward_points_threshold: points,
                 });
+            
+            if (transactionError) {
+                // Don't fail the redemption if transaction logging fails
+                console.error('⚠️  Transaction logging failed (non-critical):', transactionError.message, transactionError);
+            }
         } catch (transactionError: any) {
             // Don't fail the redemption if transaction logging fails
             console.error('⚠️  Transaction logging failed (non-critical):', transactionError?.message);

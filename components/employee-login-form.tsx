@@ -62,7 +62,7 @@ export function EmployeeLoginForm() {
         console.log("Starting login process...");
 
         try {
-            console.log("Step 1: Looking up employee by username...");
+            console.log("Step 1: Looking up employee by username...", username.trim());
             // Step 1: Look up employee by username using API endpoint (bypasses RLS)
             // RLS blocks direct client queries to employees table, so we use an API endpoint
             const lookupResponse = await fetch('/api/auth/employee/login', {
@@ -72,11 +72,32 @@ export function EmployeeLoginForm() {
             });
 
             console.log("Lookup response status:", lookupResponse.status);
+            console.log("Lookup response headers:", Object.fromEntries(lookupResponse.headers.entries()));
 
             if (!lookupResponse.ok) {
-                const errorData = await lookupResponse.json().catch(() => ({ error: 'Network error' }));
-                console.error("Lookup failed:", errorData);
-                throw new Error(errorData.error || "Invalid username or password");
+                let errorMessage = "Invalid username or password";
+                try {
+                    const responseText = await lookupResponse.text();
+                    console.error("Lookup failed - response text:", responseText);
+                    
+                    if (responseText) {
+                        try {
+                            const errorData = JSON.parse(responseText);
+                            console.error("Lookup failed - parsed error data:", errorData);
+                            if (errorData && errorData.error) {
+                                errorMessage = errorData.error;
+                            }
+                        } catch (parseError) {
+                            // Not JSON, use text as is
+                            console.error("Response is not JSON, using text:", parseError);
+                            errorMessage = responseText || errorMessage;
+                        }
+                    }
+                } catch (readError) {
+                    console.error("Failed to read error response:", readError);
+                    // Use default error message
+                }
+                throw new Error(errorMessage);
             }
 
             const lookupData = await lookupResponse.json();
@@ -132,12 +153,30 @@ export function EmployeeLoginForm() {
                 throw new Error("Access denied, employee not found or not active");
             }
             
-            console.log("Step 5: Login successful! Redirecting to /scan...");
-            // Step 6: Success! Redirect to scan page
+            console.log("Step 5: Login successful! Checking admin status...");
+            // Step 6: Check if user is admin and redirect accordingly
             // Wait a moment for session cookies to be fully established
             await new Promise(resolve => setTimeout(resolve, 500));
-            // Use router.push with refresh to ensure session is established
-            router.push("/scan");
+            
+            // Check if user is an admin
+            const adminCheckResponse = await fetch('/api/auth/employee/check');
+            const adminCheckData = await adminCheckResponse.json();
+            
+            if (adminCheckResponse.ok && adminCheckData.success && adminCheckData.isEmployee) {
+                if (adminCheckData.isAdmin) {
+                    // Admin employee - redirect to admin dashboard
+                    console.log("Admin detected, redirecting to /admin");
+                    router.push("/admin");
+                } else {
+                    // Regular employee - redirect to scan page
+                    console.log("Regular employee, redirecting to /scan");
+                    router.push("/scan");
+                }
+            } else {
+                // Fallback to scan page if check fails
+                console.log("Employee check failed, redirecting to /scan");
+                router.push("/scan");
+            }
             router.refresh();
             
         } catch (error: unknown) {
