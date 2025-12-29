@@ -92,6 +92,7 @@ export async function generateGoogleWalletPass(
     return `${issuerId}.${userIdShort}`;
   })();
   
+  // Build loyalty object - conditionally include heroImage
   const loyaltyObject: walletobjects_v1.Schema$LoyaltyObject = {
     id: objectId, // Full object resource ID: issuerId.userId (alphanumeric only)
     classId: classId, // Class resource ID (from console or constructed)
@@ -101,9 +102,15 @@ export async function generateGoogleWalletPass(
     loyaltyPoints: loyaltyPoints,
     barcode: barcode,
     textModulesData: textModulesData,
-    // Use heroImage for the tiger grid (banner at top of card)
-    // This is the recommended approach for dynamic images in Google Wallet
-    heroImage: backgroundImageUrl ? {
+    // Note: hexBackgroundColor, localizedAccountName, and localizedIssuerName 
+    // are set at the class level, not the object level
+  };
+
+  // Conditionally add heroImage if URL is provided
+  // Use heroImage for the tiger grid (banner at top of card)
+  // This is the recommended approach for dynamic images in Google Wallet
+  if (backgroundImageUrl) {
+    loyaltyObject.heroImage = {
       sourceUri: {
         uri: backgroundImageUrl,
       },
@@ -113,10 +120,8 @@ export async function generateGoogleWalletPass(
           value: `Loyalty card with ${points} points - ${rewardStatus.rewardMessage || 'Keep shopping!'}`,
         },
       },
-    } : undefined,
-    // Note: hexBackgroundColor, localizedAccountName, and localizedIssuerName 
-    // are set at the class level, not the object level
-  };
+    };
+  }
 
   return loyaltyObject;
 }
