@@ -114,7 +114,7 @@ export async function generateGoogleWalletPass(
         },
       },
     } : undefined,
-    hexBackgroundColor: '#000000',
+    // Note: hexBackgroundColor is set at the class level, not the object level
     localizedAccountName: {
       defaultValue: {
         language: 'en-US',
