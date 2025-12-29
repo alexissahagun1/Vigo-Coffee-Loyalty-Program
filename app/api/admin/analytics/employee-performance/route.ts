@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -103,5 +105,4 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
 

@@ -9,9 +9,9 @@ const POINTS_FOR_COFFEE = 10; // Customer earns a coffee reward every 10 points
 const POINTS_FOR_MEAL = 25; // Customer earns a meal reward every 25 points
 
 // Export a GET handler function that Next.js will call when /api/scan is accessed
-// Note: API routes are dynamic by default in Next.js, so this route will automatically
-// skip prerendering when using request.url
 // This endpoint fetches customer information and calculates available rewards
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
     // Wrap everything in try-catch to handle any errors gracefully
     try {
