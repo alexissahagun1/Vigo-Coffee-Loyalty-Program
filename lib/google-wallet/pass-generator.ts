@@ -114,19 +114,8 @@ export async function generateGoogleWalletPass(
         },
       },
     } : undefined,
-    // Note: hexBackgroundColor is set at the class level, not the object level
-    localizedAccountName: {
-      defaultValue: {
-        language: 'en-US',
-        value: memberName,
-      },
-    },
-    localizedIssuerName: {
-      defaultValue: {
-        language: 'en-US',
-        value: 'Vigo Coffee',
-      },
-    },
+    // Note: hexBackgroundColor, localizedAccountName, and localizedIssuerName 
+    // are set at the class level, not the object level
   };
 
   return loyaltyObject;

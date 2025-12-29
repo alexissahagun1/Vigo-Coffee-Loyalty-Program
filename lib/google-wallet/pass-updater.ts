@@ -73,7 +73,7 @@ export async function updateGoogleWalletPass(
       
       // Update account name if changed
       accountName: updatedPass.accountName,
-      localizedAccountName: updatedPass.localizedAccountName,
+      // Note: localizedAccountName is a class-level property, not object-level
       
       // Update text modules (reward messages, etc.)
       textModulesData: updatedPass.textModulesData,
