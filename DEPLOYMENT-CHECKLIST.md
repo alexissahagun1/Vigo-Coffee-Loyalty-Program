@@ -108,7 +108,7 @@ npm run dev
 ```
 
 **Test the wallet endpoint:**
-1. Sign up/login at `http://localhost:3000/auth/login`
+1. Sign up/login at `http://localhost:3000/login`
 2. Visit `http://localhost:3000/api/wallet`
 3. Should download a `.pkpass` file
 4. Open in Apple Wallet on iOS device

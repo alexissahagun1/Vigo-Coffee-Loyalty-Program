@@ -89,7 +89,7 @@ export default function EmployeeForgotPasswordPage() {
                 <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded text-sm">
                   Password reset email sent! Please check your inbox and follow the instructions.
                 </div>
-                <Link href="/auth/employee/login">
+                <Link href="/login">
                   <Button className="w-full">Back to Login</Button>
                 </Link>
               </div>
@@ -117,7 +117,7 @@ export default function EmployeeForgotPasswordPage() {
                 </Button>
                 <div className="text-center">
                   <Link
-                    href="/auth/employee/login"
+                    href="/login"
                     className="text-sm text-gray-600 hover:underline"
                   >
                     Back to Login

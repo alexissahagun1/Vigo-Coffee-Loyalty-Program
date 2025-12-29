@@ -55,7 +55,7 @@ export async function updateSession(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith('/admin')) {
     if (!userId) {
       const url = request.nextUrl.clone();
-      url.pathname = "/auth/employee/login";
+      url.pathname = "/login";
       return NextResponse.redirect(url);
     }
     
@@ -105,27 +105,27 @@ export async function updateSession(request: NextRequest) {
     // If no user, allow access (they'll validate token on the page)
   }
 
-  // EMPLOYEE LOGIN PAGE PROTECTION
+  // LOGIN PAGE PROTECTION
   // If logged-in employee tries to access login page, redirect them to scan page
   // (Admins can still access /admin directly if needed)
-  if (request.nextUrl.pathname.startsWith('/auth/employee/login')) {
+  if (request.nextUrl.pathname.startsWith('/login')) {
     if (userId) {
       // User is logged in - check if they're an employee
       const serviceSupabase = createServiceRoleClient();
       const employeeResult = await serviceSupabase
         .from('employees')
-        .select('id, is_active')
+        .select('id, is_active, is_admin')
         .eq('id', userId)
         .maybeSingle();
 
-      // If logged in and is an active employee, redirect to scan page
-      // (Admins can still navigate to /admin directly if they want)
+      // If logged in and is an active employee, redirect appropriately
       if (employeeResult.data && employeeResult.data.is_active) {
         const url = request.nextUrl.clone();
-        url.pathname = "/scan";
+        // Admins go to admin dashboard, regular employees go to scan page
+        url.pathname = employeeResult.data.is_admin ? "/admin" : "/scan";
         return NextResponse.redirect(url);
       }
-      // If logged in but NOT an employee (anonymous customer), allow access to login page
+      // If logged in but NOT an employee (customer), allow access to login page
       // (they might want to log in as an employee)
     }
     // If no user, allow access to login page
@@ -138,7 +138,7 @@ export async function updateSession(request: NextRequest) {
     if (!userId) {
       // No user logged in, redirect to login
       const url = request.nextUrl.clone();
-      url.pathname = "/auth/employee/login";
+      url.pathname = "/login";
       return NextResponse.redirect(url);
     }
     // Check if user is an employee using service role client
@@ -155,7 +155,7 @@ export async function updateSession(request: NextRequest) {
     // If not an employee or account inactive, redirect to login
     if (employeeError || !employee || !employee.is_active) {
       const url = request.nextUrl.clone();
-      url.pathname = "/auth/employee/login";
+      url.pathname = "/login";
       return NextResponse.redirect(url);
     }
   }
@@ -179,7 +179,7 @@ export async function updateSession(request: NextRequest) {
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
+    url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
