@@ -145,7 +145,7 @@ export function kmeansSegmentation(
   });
   
   // Run k-means
-  const result = kmeans(normalized, k);
+  const result = kmeans(normalized, k, {});
   
   // Map clusters to segments
   // Cluster 0 = highest values (VIP), Cluster k-1 = lowest values (Churned)
