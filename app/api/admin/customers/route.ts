@@ -65,15 +65,15 @@ export async function POST(req: NextRequest) {
     const anonymousPassword = randomBytes(32).toString('hex');
 
     // Create anonymous auth user using admin API
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    const { data: authData, error: createUserError } = await supabase.auth.admin.createUser({
       email: anonymousEmail,
       password: anonymousPassword,
       email_confirm: true, // Auto-confirm email
     });
     
-    if (authError || !authData.user) {
+    if (createUserError || !authData.user) {
       return NextResponse.json(
-        { error: authError?.message || "Failed to create user" },
+        { error: createUserError?.message || "Failed to create user" },
         { status: 500 }
       );
     }

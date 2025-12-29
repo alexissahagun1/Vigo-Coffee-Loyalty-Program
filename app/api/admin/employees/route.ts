@@ -130,9 +130,6 @@ export async function PUT(req: NextRequest) {
 // DELETE - Delete employee (soft delete by setting is_active to false)
 export async function DELETE(req: NextRequest) {
   try {
-<<<<<<< HEAD
-    const searchParams = req.nextUrl.searchParams;
-=======
     // SECURITY: Require admin authentication
     const authError = await requireAdminAuth();
     if (authError) {
@@ -140,7 +137,6 @@ export async function DELETE(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
->>>>>>> admin-customer-join-logic
     const id = searchParams.get('id');
 
     if (!id) {
