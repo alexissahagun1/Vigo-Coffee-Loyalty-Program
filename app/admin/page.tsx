@@ -172,7 +172,9 @@ export default function AdminPage() {
     c.full_name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
     c.email?.toLowerCase().includes(customerSearch.toLowerCase()) ||
     c.phone?.toLowerCase().includes(customerSearch.toLowerCase())
-  );
+  ).sort((a: any, b: any) => {
+    return (b.points_balance || 0) - (a.points_balance || 0);
+  });
 
   const filteredEmployees = employees.filter((e: any) => 
     e.full_name?.toLowerCase().includes(employeeSearch.toLowerCase()) ||

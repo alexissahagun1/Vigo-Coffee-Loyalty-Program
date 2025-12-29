@@ -19,7 +19,7 @@ interface Customer {
   phone: string | null;
   points_balance: number;
   total_purchases: number;
-  updated_at?: string;
+  created_at?: string;
 }
 
 interface CustomerTableProps {
@@ -127,7 +127,7 @@ export function CustomerTable({ customers }: CustomerTableProps) {
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   <span className="text-sm text-muted-foreground">
-                    {customer.updated_at ? new Date(customer.updated_at).toLocaleDateString('en-US', { 
+                    {customer.created_at ? new Date(customer.created_at).toLocaleDateString('en-US', { 
                       month: 'short', 
                       day: 'numeric',
                       year: 'numeric'
