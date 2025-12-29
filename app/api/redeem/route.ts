@@ -1,15 +1,22 @@
 // Import Next.js types for handling HTTP requests and responses
 import { NextRequest, NextResponse } from "next/server";
 // Import the function that creates a Supabase client with service role (bypasses RLS)
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createServiceRoleClient, createClient } from "@/lib/supabase/server";
 // Import the function that sends push notifications to update the Apple Wallet pass
 import { notifyPassUpdate } from "@/lib/passkit/push-notifications";
+import { requireEmployeeAuth } from "@/lib/auth/employee-auth";
 
 // Export a POST handler function that Next.js will call when /api/redeem is accessed
 // This endpoint marks a reward as redeemed without deducting points
 export async function POST(req: NextRequest) {
     // Wrap everything in try-catch to handle any errors gracefully
     try {
+        // SECURITY: Require employee authentication
+        const authError = await requireEmployeeAuth();
+        if (authError) {
+            return authError;
+        }
+
         // Parse the JSON body from the request
         // Expected format: { customerId: "uuid", type: "coffee", points: 10 }
         const body = await req.json();
@@ -141,6 +148,50 @@ export async function POST(req: NextRequest) {
                 },
                 { status: 500 } // HTTP status code: 500 = Internal Server Error
             );
+        }
+
+        // Get employee_id from authenticated user (if available)
+        let employeeId: string | null = null;
+        try {
+            const authSupabase = await createClient();
+            const { data: { user } } = await authSupabase.auth.getUser();
+            if (user) {
+                // Verify user is an employee
+                const { data: employee } = await supabase
+                    .from('employees')
+                    .select('id')
+                    .eq('id', user.id)
+                    .single();
+                if (employee) {
+                    employeeId = user.id;
+                }
+            }
+        } catch (err) {
+            // Employee ID is optional, continue without it
+            console.log('Could not get employee ID:', err);
+        }
+
+        // Log transaction
+        const transactionType = type === 'coffee' ? 'redemption_coffee' : 'redemption_meal';
+        try {
+            const { error: transactionError } = await supabase
+                .from('transactions')
+                .insert({
+                    customer_id: customerId,
+                    employee_id: employeeId,
+                    type: transactionType,
+                    points_change: 0, // Redemptions don't change points
+                    points_balance_after: updatedProfile.points_balance,
+                    reward_points_threshold: points,
+                });
+            
+            if (transactionError) {
+                // Don't fail the redemption if transaction logging fails
+                console.error('⚠️  Transaction logging failed (non-critical):', transactionError.message, transactionError);
+            }
+        } catch (transactionError: any) {
+            // Don't fail the redemption if transaction logging fails
+            console.error('⚠️  Transaction logging failed (non-critical):', transactionError?.message);
         }
 
         // Send a push notification to update the Apple Wallet pass

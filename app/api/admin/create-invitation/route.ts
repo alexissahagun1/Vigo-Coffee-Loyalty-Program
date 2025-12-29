@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { randomBytes } from "crypto";
+import { requireAdminAuth } from "@/lib/auth/employee-auth";
 
 export async function POST(req: NextRequest) {
   try {
+    // SECURITY: Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+      return authError;
+    }
+
     const { email } = await req.json();
 
     if (!email) {

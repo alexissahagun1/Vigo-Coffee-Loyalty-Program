@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 export function JoinLoyaltyForm() {
   const [fullName, setFullName] = useState("");
   const [birthday, setBirthday] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -35,6 +37,14 @@ export function JoinLoyaltyForm() {
     setError(null);
 
     try {
+      // Trim and validate full name - Apple Wallet rejects empty strings
+      const trimmedFullName = fullName.trim();
+      if (!trimmedFullName) {
+        setError('Full name is required');
+        setIsLoading(false);
+        return;
+      }
+
       const supabase = createClient();
       
       // Create anonymous auth user (gets unique ID automatically)
@@ -53,19 +63,59 @@ export function JoinLoyaltyForm() {
       }
 
       // Create profile with the auth user's ID
-      const profileResult = await supabase
+      // Ensure empty strings are converted to null - Apple Wallet rejects empty strings
+      let profileResult = await supabase
         .from('profiles')
         .upsert({
           id: userId,
-          full_name: fullName,
+          full_name: trimmedFullName, // Use trimmed name (guaranteed non-empty)
           birthday: birthdayDate,
+          email: email.trim() || null, // Trim and convert empty to null
+          phone: phone.trim() || null, // Trim and convert empty to null
           points_balance: 0,
           total_purchases: 0
         }, {
           onConflict: 'id'
         });
 
+      // If update failed due to schema cache issue (phone column not found), retry without it
+      if (profileResult.error && profileResult.error.message?.includes("phone")) {
+        profileResult = await supabase
+          .from('profiles')
+          .upsert({
+            id: userId,
+            full_name: trimmedFullName,
+            birthday: birthdayDate,
+            email: email.trim() || null,
+            points_balance: 0,
+            total_purchases: 0
+          }, {
+            onConflict: 'id'
+          });
+      }
+
       if (profileResult.error) throw profileResult.error;
+
+      // Verify profile was created successfully by fetching it back
+      // This ensures the profile is committed to the database before redirecting
+      const { data: verifyProfile, error: verifyError } = await supabase
+        .from('profiles')
+        .select('id, full_name, points_balance')
+        .eq('id', userId)
+        .single();
+
+      if (verifyError || !verifyProfile) {
+        throw new Error('Profile created but could not be verified. Please try again.');
+      }
+
+      // Ensure full_name is set (critical for pass generation)
+      if (!verifyProfile.full_name || !verifyProfile.full_name.trim()) {
+        // Update with full_name if somehow it's missing
+        await supabase
+          .from('profiles')
+          .update({ full_name: trimmedFullName })
+          .eq('id', userId);
+      }
 
       // Update rate limit tracking
       localStorage.setItem('signupCount', (signupCount + 1).toString());
@@ -74,10 +124,11 @@ export function JoinLoyaltyForm() {
       // Show success and redirect to wallet download
       setSuccess(true);
       
-      // Wait a moment then redirect
+      // Wait longer to ensure profile is fully committed and accessible
+      // Increased from 1500ms to 2000ms to account for email/phone field writes
       setTimeout(() => {
         window.location.href = '/api/wallet';
-      }, 1500);
+      }, 2000);
 
     } catch (error: any) {
       setError(error.message || 'Something went wrong. Please try again.');
@@ -124,7 +175,7 @@ export function JoinLoyaltyForm() {
             </div>
             
             <div>
-              <Label htmlFor="birthday">Birthday (Optional)</Label>
+              <Label htmlFor="birthday">Birthday</Label>
               <Input
                 id="birthday"
                 type="date"
@@ -135,6 +186,30 @@ export function JoinLoyaltyForm() {
               <p className="text-xs text-gray-500 mt-1">
                 Get special promotions on your birthday!
               </p>
+            </div>
+
+            <div>
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="john@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                type="tel"
+                placeholder="+1 (555) 123-4567"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                disabled={isLoading}
+              />
             </div>
 
             {error && (

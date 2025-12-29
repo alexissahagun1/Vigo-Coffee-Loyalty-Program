@@ -20,6 +20,15 @@ export async function GET(
   { params }: { params: Promise<{ passTypeIdentifier: string; serialNumber: string }> }
 ) {
   try {
+    // Validate required environment variables first
+    if (!process.env.APPLE_PASS_CERT_BASE64 || !process.env.APPLE_PASS_KEY_BASE64 || !process.env.APPLE_WWDR_CERT_BASE64) {
+      console.error('❌ Apple Pass certificates not configured');
+      return new NextResponse(
+        JSON.stringify({ error: 'Apple Pass certificates not configured' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { passTypeIdentifier, serialNumber } = await params;
     
     console.log(`📱 Apple fetching pass update for serial: ${serialNumber}`);
@@ -98,9 +107,19 @@ export async function GET(
     }
     
     // Prepare pass.json properties with webServiceURL
+    // Validate required fields - Apple Wallet rejects passes with empty required fields
+    const teamIdentifier = process.env.APPLE_TEAM_ID?.trim();
+    if (!teamIdentifier) {
+      console.error('❌ APPLE_TEAM_ID is required but not set');
+      return new NextResponse(
+        JSON.stringify({ error: 'Apple Team ID not configured' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const passJsonProps: any = {
       passTypeIdentifier: passTypeIdentifier,
-      teamIdentifier: process.env.APPLE_TEAM_ID || '',
+      teamIdentifier: teamIdentifier, // Must be non-empty
       organizationName: 'Vigo Coffee',
       description: 'Vigo Coffee Loyalty Card',
       serialNumber: serialNumber,
@@ -117,11 +136,13 @@ export async function GET(
     passJsonProps.authenticationToken = generateAuthToken(serialNumber);
 
     // Initialize the Pass (same logic as wallet route)
+    // IMPORTANT: signerKey must be the private key, NOT the certificate
+    // Using the certificate as the key will cause Apple Wallet to reject the pass
     const pass = new PKPass(
       {},
       {
         signerCert: Buffer.from(process.env.APPLE_PASS_CERT_BASE64, 'base64'),
-        signerKey: Buffer.from(process.env.APPLE_PASS_KEY_BASE64 || process.env.APPLE_PASS_CERT_BASE64, 'base64'),
+        signerKey: Buffer.from(process.env.APPLE_PASS_KEY_BASE64, 'base64'),
         wwdr: Buffer.from(process.env.APPLE_WWDR_CERT_BASE64, 'base64'),
         signerKeyPassphrase: process.env.APPLE_PASS_PASSWORD
       },
@@ -206,17 +227,25 @@ export async function GET(
       rewardLabel = 'KEEP GOING';
     }
 
+    // Balance in top right corner - ensure points_balance is a valid number
+    const pointsBalance = Number(profile.points_balance) || 0;
     pass.headerFields.push({
       key: 'balance',
       label: 'BALANCE',
-      value: profile.points_balance + ' pts',
+      value: `${pointsBalance} pts`,
       textAlignment: 'PKTextAlignmentRight'
     });
 
+    // Member name - ensure we have a valid non-empty string
+    let memberName = profile.full_name?.trim() || 'Valued Customer';
+    memberName = memberName.trim(); // Final trim to ensure no whitespace-only strings
+    if (!memberName) {
+      memberName = 'Valued Customer';
+    }
     pass.secondaryFields.push({
       key: 'member',
       label: 'MEMBER',
-      value: profile.full_name || 'Valued Customer',
+      value: memberName,
       textAlignment: 'PKTextAlignmentLeft'
     });
 

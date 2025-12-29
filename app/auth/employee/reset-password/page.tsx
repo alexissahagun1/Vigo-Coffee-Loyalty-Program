@@ -70,7 +70,7 @@ function ResetPasswordForm() {
       }
 
       // If not an employee, redirect to login
-      router.push("/auth/employee/login?success=Password updated successfully");
+      router.push("/login?success=Password updated successfully");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Failed to update password");
     } finally {

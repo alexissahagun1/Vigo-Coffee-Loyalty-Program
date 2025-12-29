@@ -15,7 +15,9 @@ import {
   LayoutDashboard,
   Search,
   Coffee,
-  Loader2
+  Loader2,
+  BarChart3,
+  Receipt
 } from "lucide-react";
 
 import { DashboardHeader } from "@/components/admin/DashboardHeader";
@@ -23,8 +25,11 @@ import { StatCard } from "@/components/admin/StatCard";
 import { CustomerTable } from "@/components/admin/CustomerTable";
 import { EmployeeTable } from "@/components/admin/EmployeeTable";
 import { InvitationTable } from "@/components/admin/InvitationTable";
+import { TransactionTable } from "@/components/admin/TransactionTable";
 import { TopCustomers } from "@/components/admin/TopCustomers";
 import { InviteForm } from "@/components/admin/InviteForm";
+import { CustomerForm } from "@/components/admin/CustomerForm";
+import { AnalyticsOverview } from "@/components/admin/AnalyticsOverview";
 import { createClient } from "@/lib/supabase/client";
 
 // API fetch functions
@@ -56,6 +61,13 @@ async function fetchInvitations() {
   return data.invitations;
 }
 
+async function fetchTransactions() {
+  const res = await fetch('/api/admin/transactions');
+  if (!res.ok) throw new Error('Failed to fetch transactions');
+  const data = await res.json();
+  return data.transactions || [];
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -64,6 +76,7 @@ export default function AdminPage() {
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [username, setUsername] = useState<string | undefined>(undefined);
 
   // Force light mode for admin dashboard
   useEffect(() => {
@@ -77,14 +90,14 @@ export default function AdminPage() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-        router.push('/auth/employee/login');
+        router.push('/login');
       return;
     }
 
       // Check if user is an active admin employee
       const { data: employee, error } = await supabase
       .from('employees')
-      .select('is_admin, is_active')
+      .select('is_admin, is_active, username')
       .eq('id', user.id)
       .single();
 
@@ -94,6 +107,8 @@ export default function AdminPage() {
       return;
     }
 
+      // Set the username for personalization
+      setUsername(employee.username || undefined);
       setIsAuthorized(true);
       setIsCheckingAuth(false);
     }
@@ -128,6 +143,13 @@ export default function AdminPage() {
     refetchInterval: 10000, // Refetch every 10 seconds
   });
 
+  const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
+    queryKey: ['admin-transactions'],
+    queryFn: fetchTransactions,
+    enabled: isAuthorized,
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
+  });
+
   // Refresh data after invitation creation
   const handleInviteCreated = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-invitations'] });
@@ -140,10 +162,19 @@ export default function AdminPage() {
     queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
   };
 
+  // Refresh data after customer creation
+  const handleCustomerCreated = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-customers'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+  };
+
   const filteredCustomers = customers.filter((c: any) => 
     c.full_name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
-    c.email?.toLowerCase().includes(customerSearch.toLowerCase())
-  );
+    c.email?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+    c.phone?.toLowerCase().includes(customerSearch.toLowerCase())
+  ).sort((a: any, b: any) => {
+    return (b.points_balance || 0) - (a.points_balance || 0);
+  });
 
   const filteredEmployees = employees.filter((e: any) => 
     e.full_name?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
@@ -172,7 +203,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader />
+      <DashboardHeader username={username} />
       
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="space-y-8">
@@ -183,6 +214,20 @@ export default function AdminPage() {
             >
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden sm:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="analytics"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="transactions"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+            >
+              <Receipt className="w-4 h-4" />
+              <span className="hidden sm:inline">Transactions</span>
             </TabsTrigger>
             <TabsTrigger 
               value="customers"
@@ -242,7 +287,7 @@ export default function AdminPage() {
                 <StatCard
                   title="Total Purchases"
                   value={stats.totalPurchases.toLocaleString()}
-                  subtitle="Transactions recorded"
+                  subtitle="1 purchase = 1 point"
                   icon={ShoppingBag}
                   trend={{ value: 15, isPositive: true }}
                   delay={4}
@@ -318,6 +363,26 @@ export default function AdminPage() {
             </div>
           </TabsContent>
 
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-8">
+            <AnalyticsOverview />
+          </TabsContent>
+
+          {/* Transactions Tab */}
+          <TabsContent value="transactions" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-display font-bold">Transactions</h2>
+              <p className="text-muted-foreground">View all customer transactions and redemptions</p>
+            </div>
+            {transactionsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              <TransactionTable transactions={transactions} isLoading={transactionsLoading} />
+            )}
+          </TabsContent>
+
           {/* Customers Tab */}
           <TabsContent value="customers" className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -335,13 +400,21 @@ export default function AdminPage() {
                 />
                 </div>
                 </div>
-            {customersLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-1">
+                <CustomerForm onCustomerCreated={handleCustomerCreated} />
               </div>
-            ) : (
-              <CustomerTable customers={filteredCustomers} />
-            )}
+              <div className="lg:col-span-2">
+                {customersLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <CustomerTable customers={filteredCustomers} />
+                )}
+              </div>
+            </div>
           </TabsContent>
 
           {/* Employees Tab */}

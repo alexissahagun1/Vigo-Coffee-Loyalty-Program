@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const serviceSupabase = createServiceRoleClient();
     const { data: employee, error: employeeError } = await serviceSupabase
       .from('employees')
-      .select('id, is_active')
+      .select('id, is_active, is_admin')
       .eq('id', user.id)
       .single();
 
@@ -44,6 +44,7 @@ export async function GET(req: NextRequest) {
       success: true,
       isEmployee: true,
       isActive: employee.is_active,
+      isAdmin: employee.is_admin,
     });
 
   } catch (error: any) {
@@ -53,4 +54,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
 

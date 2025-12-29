@@ -70,7 +70,7 @@ export default function AdminPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        router.push('/auth/employee/login');
+        router.push('/login');
         return;
       }
 

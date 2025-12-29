@@ -7,9 +7,13 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
  */
 export async function POST(req: NextRequest) {
   try {
-    const { username } = await req.json();
+    const body = await req.json();
+    const { username } = body;
+    
+    console.log('[Employee Login API] Received request with username:', username);
 
     if (!username) {
+      console.log('[Employee Login API] Username missing');
       return NextResponse.json(
         { error: "Username is required" },
         { status: 400 }
@@ -17,15 +21,50 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = createServiceRoleClient();
+    console.log('[Employee Login API] Service role client created, querying employees table...');
 
-    // Step 1: Look up employee by username
-    const { data: employee, error: employeeError } = await supabase
-      .from('employees')
-      .select('id, email, is_active')
-      .eq('username', username)
-      .single();
+    // Step 1: Look up employee by username OR email (support both)
+    // Check if input looks like an email (contains @)
+    const isEmail = username.includes('@');
+    
+    let employeeQuery;
+    if (isEmail) {
+      console.log('[Employee Login API] Input appears to be an email, searching by email...');
+      employeeQuery = supabase
+        .from('employees')
+        .select('id, email, is_active')
+        .eq('email', username)
+        .maybeSingle();
+    } else {
+      console.log('[Employee Login API] Input appears to be a username, searching by username...');
+      employeeQuery = supabase
+        .from('employees')
+        .select('id, email, is_active')
+        .eq('username', username)
+        .maybeSingle();
+    }
 
-    if (employeeError || !employee) {
+    const { data: employee, error: employeeError } = await employeeQuery;
+
+    console.log('[Employee Login API] Query result:', { 
+      hasEmployee: !!employee, 
+      employeeError: employeeError?.message,
+      employeeId: employee?.id,
+      employeeEmail: employee?.email,
+      isActive: employee?.is_active
+    });
+
+    if (employeeError && employeeError.code !== 'PGRST116') {
+      // PGRST116 is "no rows found" which is handled below
+      console.error('[Employee Login API] Database error:', employeeError);
+      return NextResponse.json(
+        { error: "Invalid username or password", details: employeeError.message },
+        { status: 401 }
+      );
+    }
+
+    if (!employee) {
+      console.log('[Employee Login API] No employee found with', isEmail ? 'email' : 'username', ':', username);
       return NextResponse.json(
         { error: "Invalid username or password" },
         { status: 401 }

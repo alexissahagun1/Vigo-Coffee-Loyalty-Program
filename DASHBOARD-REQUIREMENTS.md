@@ -429,3 +429,4 @@ After setting up the dashboard:
 - Employee Login: `app/auth/employee/login/page.tsx`, `components/employee-login-form.tsx`
 - Database Setup: `supabase-setup.sql`, `supabase-rls-security.sql`
 
+

@@ -90,7 +90,7 @@ function AcceptInvitationContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      router.push('/auth/employee/login?success=Account created successfully');
+      router.push('/login?success=Account created successfully');
     } catch (err: any) {
       setError(err.message);
     } finally {

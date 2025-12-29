@@ -144,3 +144,4 @@ ADD COLUMN IF NOT EXISTS redeemed_rewards JSONB DEFAULT '{"coffees": [], "meals"
 - **Employee-Only**: Only employees can add points or redeem rewards
 - **Mobile-First**: Designed for phone camera scanning
 
+

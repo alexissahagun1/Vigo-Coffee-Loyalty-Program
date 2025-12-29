@@ -43,3 +43,4 @@ COMMENT ON COLUMN public.pass_registrations.pass_type_identifier IS 'Pass Type I
 COMMENT ON COLUMN public.pass_registrations.serial_number IS 'User ID (used as pass serial number)';
 COMMENT ON COLUMN public.pass_registrations.push_token IS 'APNs push token for sending notifications';
 
+

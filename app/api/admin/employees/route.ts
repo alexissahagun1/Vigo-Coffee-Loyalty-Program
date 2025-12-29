@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient, createClient } from "@/lib/supabase/server";
+import { requireAdminAuth } from "@/lib/auth/employee-auth";
 
 // GET - List all employees
 export async function GET(req: NextRequest) {
   try {
+    // SECURITY: Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+      return authError;
+    }
+
     const supabase = createServiceRoleClient();
 
     const { data, error } = await supabase
@@ -31,6 +38,12 @@ export async function GET(req: NextRequest) {
 // PUT - Update employee
 export async function PUT(req: NextRequest) {
   try {
+    // SECURITY: Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+      return authError;
+    }
+
     const { id, ...updates } = await req.json();
 
     if (!id) {
@@ -117,6 +130,12 @@ export async function PUT(req: NextRequest) {
 // DELETE - Delete employee (soft delete by setting is_active to false)
 export async function DELETE(req: NextRequest) {
   try {
+    // SECURITY: Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+      return authError;
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
