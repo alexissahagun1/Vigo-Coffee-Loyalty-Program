@@ -137,18 +137,35 @@ export async function GET(req: NextRequest) {
       const baseUrl = getBaseUrl();
       const { isPublicUrl } = await import('@/lib/google-wallet/image-urls');
       
+      console.log(`🔍 Background Image URL Debug:`);
+      console.log(`   Base URL: ${baseUrl}`);
+      console.log(`   NEXT_PUBLIC_APP_URL: ${process.env.NEXT_PUBLIC_APP_URL || 'not set'}`);
+      console.log(`   VERCEL_URL: ${process.env.VERCEL_URL || 'not set'}`);
+      console.log(`   Is public URL: ${isPublicUrl(baseUrl)}`);
+      console.log(`   User ID: ${user.id}`);
+      
       if (isPublicUrl(baseUrl)) {
         // Use API endpoint to serve the generated image on-demand
         // The endpoint generates the image with current points
         // Timestamp query param ensures Google Wallet fetches fresh image
         backgroundImageUrl = `${baseUrl}/api/google-wallet/background/${user.id}?t=${Date.now()}`;
         console.log(`✅ Using heroImage URL: ${backgroundImageUrl}`);
+        console.log(`   URL length: ${backgroundImageUrl.length} characters`);
+        
+        // Test if the URL is valid
+        try {
+          const urlObj = new URL(backgroundImageUrl);
+          console.log(`   ✅ URL is valid: ${urlObj.protocol}//${urlObj.host}${urlObj.pathname}${urlObj.search}`);
+        } catch (urlError: any) {
+          console.error(`   ❌ Invalid URL format: ${urlError.message}`);
+        }
       } else {
         console.warn('⚠️  Skipping heroImage - localhost URLs are not accessible by Google Wallet');
         console.warn('   Set NEXT_PUBLIC_APP_URL to a public URL to enable heroImage');
       }
     } catch (urlError: any) {
-      console.warn('⚠️  Skipping heroImage due to URL error:', urlError.message);
+      console.error('❌ Skipping heroImage due to URL error:', urlError.message);
+      console.error('   Stack:', urlError.stack);
     }
 
     // Note: We still load the buffers for class creation (programLogo), but don't use them for object heroImage
@@ -212,6 +229,11 @@ export async function GET(req: NextRequest) {
     console.log(`   state: ${loyaltyObject.state}`);
     console.log(`   accountId: ${loyaltyObject.accountId}`);
     console.log(`   accountName: ${loyaltyObject.accountName}`);
+    console.log(`   heroImage: ${loyaltyObject.heroImage ? 'SET' : 'NOT SET'}`);
+    if (loyaltyObject.heroImage) {
+      console.log(`   heroImage.sourceUri.uri: ${loyaltyObject.heroImage.sourceUri?.uri}`);
+      console.log(`   heroImage structure:`, JSON.stringify(loyaltyObject.heroImage, null, 2));
+    }
     
     try {
       // Try to get existing pass first

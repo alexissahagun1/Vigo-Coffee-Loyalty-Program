@@ -15,12 +15,19 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
+  const startTime = Date.now();
+  let userId: string | undefined;
+  
   try {
-    const { userId } = await params;
+    userId = (await params).userId;
+    console.log(`🖼️  Background image request for userId: ${userId}`);
+    console.log(`   Request URL: ${req.url}`);
+    console.log(`   User-Agent: ${req.headers.get('user-agent') || 'unknown'}`);
     
     // Get user profile to get current points
     // Note: This endpoint must be publicly accessible for Google Wallet to fetch images
     // We use service role client to bypass RLS so Google Wallet can access without authentication
+    console.log(`   Fetching profile from database...`);
     const supabase = createServiceRoleClient();
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -28,30 +35,69 @@ export async function GET(
       .eq('id', userId)
       .single();
     
+    if (error) {
+      console.warn(`   ⚠️  Database error: ${error.message}`);
+    }
+    
     if (error || !profile) {
       // Return a default image or 404 - but for Google Wallet, we should return something
       // Return a default image with 0 points to avoid breaking the pass
-      console.warn(`Profile not found for userId ${userId}, using default image`);
+      console.warn(`   ⚠️  Profile not found for userId ${userId}, using default image (0 points)`);
+    } else {
+      console.log(`   ✅ Profile found with ${profile.points_balance || 0} points`);
     }
     
     // Load image assets
-    const logoBuffer = readFileSync(join(process.cwd(), 'public', 'logo.png'));
-    const redTigerBuffer = readFileSync(join(process.cwd(), 'public', 'tiger-red.png'));
-    const whiteTigerBuffer = readFileSync(join(process.cwd(), 'public', 'tiger-white.png'));
+    console.log(`   Loading image assets from public folder...`);
+    const publicDir = join(process.cwd(), 'public');
+    console.log(`   Public directory: ${publicDir}`);
+    
+    let logoBuffer: Buffer;
+    let redTigerBuffer: Buffer;
+    let whiteTigerBuffer: Buffer;
+    
+    try {
+      logoBuffer = readFileSync(join(publicDir, 'logo.png'));
+      console.log(`   ✅ logo.png loaded (${logoBuffer.length} bytes)`);
+    } catch (err: any) {
+      console.error(`   ❌ Failed to load logo.png: ${err.message}`);
+      throw new Error(`Failed to load logo.png: ${err.message}`);
+    }
+    
+    try {
+      redTigerBuffer = readFileSync(join(publicDir, 'tiger-red.png'));
+      console.log(`   ✅ tiger-red.png loaded (${redTigerBuffer.length} bytes)`);
+    } catch (err: any) {
+      console.error(`   ❌ Failed to load tiger-red.png: ${err.message}`);
+      throw new Error(`Failed to load tiger-red.png: ${err.message}`);
+    }
+    
+    try {
+      whiteTigerBuffer = readFileSync(join(publicDir, 'tiger-white.png'));
+      console.log(`   ✅ tiger-white.png loaded (${whiteTigerBuffer.length} bytes)`);
+    } catch (err: any) {
+      console.error(`   ❌ Failed to load tiger-white.png: ${err.message}`);
+      throw new Error(`Failed to load tiger-white.png: ${err.message}`);
+    }
     
     // Generate background with current points (use 0 if profile not found)
     const pointsBalance = profile?.points_balance ?? 0;
+    console.log(`   Generating background image with ${pointsBalance} points...`);
     const backgroundBuffer = await generateLoyaltyCardBackground(
       pointsBalance,
       logoBuffer,
       redTigerBuffer,
       whiteTigerBuffer
     );
+    console.log(`   ✅ Background image generated (${backgroundBuffer.length} bytes)`);
     
     // Return image with cache-busting headers
     // The timestamp query param in the URL already handles cache busting
     // Convert Buffer to Uint8Array for NextResponse compatibility
     // Add CORS headers to allow Google Wallet to fetch the image
+    const responseTime = Date.now() - startTime;
+    console.log(`   ✅ Returning image (took ${responseTime}ms)`);
+    
     return new NextResponse(new Uint8Array(backgroundBuffer), {
       headers: {
         'Content-Type': 'image/png',
@@ -60,11 +106,32 @@ export async function GET(
         'Expires': '0',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
+        'Content-Length': backgroundBuffer.length.toString(),
       },
     });
   } catch (error: any) {
-    console.error('Error generating background image:', error);
-    return new NextResponse('Error generating image', { status: 500 });
+    const errorTime = Date.now() - startTime;
+    console.error(`❌ Error generating background image for userId ${userId || 'unknown'}:`, error);
+    console.error(`   Error message: ${error.message}`);
+    console.error(`   Error stack: ${error.stack}`);
+    console.error(`   Failed after ${errorTime}ms`);
+    
+    // Return a 500 error with details in the response body for debugging
+    return new NextResponse(
+      JSON.stringify({ 
+        error: 'Error generating image',
+        message: error.message,
+        userId: userId || 'unknown',
+        timestamp: new Date().toISOString()
+      }),
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
+      }
+    );
   }
 }
 
