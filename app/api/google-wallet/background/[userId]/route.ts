@@ -15,6 +15,11 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
+  // Add immediate logging that will show even if everything else fails
+  console.log('🚨 BACKGROUND ENDPOINT CALLED - Route handler executing');
+  console.log('🚨 Request URL:', req.url);
+  console.log('🚨 Request method:', req.method);
+  
   const startTime = Date.now();
   let userId: string | undefined;
   
