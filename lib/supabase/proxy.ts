@@ -173,7 +173,7 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/api/scan") &&
     !request.nextUrl.pathname.startsWith("/api/redeem") &&
     !request.nextUrl.pathname.startsWith("/api/purchase") &&
-    !request.nextUrl.pathname.startsWith("/api/admin/reset-password") &&
+    !request.nextUrl.pathname.startsWith("/api/admin") &&
     !request.nextUrl.pathname.startsWith("/api/auth/employee/login") &&
     !request.nextUrl.pathname.startsWith("/api/auth/employee/check")
   ) {

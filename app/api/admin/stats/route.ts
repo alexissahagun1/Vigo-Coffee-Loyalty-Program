@@ -52,8 +52,10 @@ export async function GET(req: NextRequest) {
     ]);
 
     // Calculate totals from the profiles data
+    // Since 1 purchase = 1 point and points aren't deducted on redemption,
+    // total purchases should equal total points
     const totalPoints = profilesData?.reduce((sum, p) => sum + (p.points_balance || 0), 0) || 0;
-    const totalPurchases = profilesData?.reduce((sum, p) => sum + (Number(p.total_purchases) || 0), 0) || 0;
+    const totalPurchases = totalPoints; // 1 purchase = 1 point, so they're the same
 
     // Calculate rewards redeemed
     const profilesWithRewards = profilesData;

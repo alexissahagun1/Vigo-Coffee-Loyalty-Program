@@ -15,7 +15,8 @@ import {
   LayoutDashboard,
   Search,
   Coffee,
-  Loader2
+  Loader2,
+  BarChart3
 } from "lucide-react";
 
 import { DashboardHeader } from "@/components/admin/DashboardHeader";
@@ -25,6 +26,7 @@ import { EmployeeTable } from "@/components/admin/EmployeeTable";
 import { InvitationTable } from "@/components/admin/InvitationTable";
 import { TopCustomers } from "@/components/admin/TopCustomers";
 import { InviteForm } from "@/components/admin/InviteForm";
+import { AnalyticsOverview } from "@/components/admin/AnalyticsOverview";
 import { createClient } from "@/lib/supabase/client";
 
 // API fetch functions
@@ -64,6 +66,7 @@ export default function AdminPage() {
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [username, setUsername] = useState<string | undefined>(undefined);
 
   // Force light mode for admin dashboard
   useEffect(() => {
@@ -84,7 +87,7 @@ export default function AdminPage() {
       // Check if user is an active admin employee
       const { data: employee, error } = await supabase
       .from('employees')
-      .select('is_admin, is_active')
+      .select('is_admin, is_active, username')
       .eq('id', user.id)
       .single();
 
@@ -94,6 +97,8 @@ export default function AdminPage() {
       return;
     }
 
+      // Set the username for personalization
+      setUsername(employee.username || undefined);
       setIsAuthorized(true);
       setIsCheckingAuth(false);
     }
@@ -172,7 +177,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <DashboardHeader />
+      <DashboardHeader username={username} />
       
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="space-y-8">
@@ -183,6 +188,13 @@ export default function AdminPage() {
             >
               <LayoutDashboard className="w-4 h-4" />
               <span className="hidden sm:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="analytics"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Analytics</span>
             </TabsTrigger>
             <TabsTrigger 
               value="customers"
@@ -242,7 +254,7 @@ export default function AdminPage() {
                 <StatCard
                   title="Total Purchases"
                   value={stats.totalPurchases.toLocaleString()}
-                  subtitle="Transactions recorded"
+                  subtitle="1 purchase = 1 point"
                   icon={ShoppingBag}
                   trend={{ value: 15, isPositive: true }}
                   delay={4}
@@ -316,6 +328,11 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-8">
+            <AnalyticsOverview />
           </TabsContent>
 
           {/* Customers Tab */}

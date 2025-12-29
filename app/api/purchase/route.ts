@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { createServiceRoleClient, createClient } from "@/lib/supabase/server";
 import { notifyPassUpdate, notifyRewardEarned } from "@/lib/passkit/push-notifications";
 
 const POINTS_PER_PURCHASE = 1; // 1 point per purchase
@@ -113,6 +113,44 @@ export async function POST(req: NextRequest) {
                 { error: 'Failed to update profile', details: updatedError?.message},
                 { status: 500 }
             );
+        }
+
+        // Get employee_id from authenticated user (if available)
+        let employeeId: string | null = null;
+        try {
+            const authSupabase = await createClient();
+            const { data: { user } } = await authSupabase.auth.getUser();
+            if (user) {
+                // Verify user is an employee
+                const { data: employee } = await supabase
+                    .from('employees')
+                    .select('id')
+                    .eq('id', user.id)
+                    .single();
+                if (employee) {
+                    employeeId = user.id;
+                }
+            }
+        } catch (err) {
+            // Employee ID is optional, continue without it
+            console.log('Could not get employee ID:', err);
+        }
+
+        // Log transaction
+        try {
+            await supabase
+                .from('transactions')
+                .insert({
+                    customer_id: customerId,
+                    employee_id: employeeId,
+                    type: 'purchase',
+                    points_change: POINTS_PER_PURCHASE,
+                    points_balance_after: newPointsBalance,
+                    reward_points_threshold: null,
+                });
+        } catch (transactionError: any) {
+            // Don't fail the purchase if transaction logging fails
+            console.error('⚠️  Transaction logging failed (non-critical):', transactionError?.message);
         }
 
         // Send push notifications to registered devices (if APNs is configured)

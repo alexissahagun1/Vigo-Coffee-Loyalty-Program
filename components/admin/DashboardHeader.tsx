@@ -2,7 +2,16 @@
 
 import Image from "next/image";
 
-export function DashboardHeader() {
+interface DashboardHeaderProps {
+  username?: string;
+}
+
+export function DashboardHeader({ username }: DashboardHeaderProps) {
+  const displayName = username || 'Admin';
+  const initials = displayName
+    .toUpperCase()
+    .slice(0, 2);
+
   return (
     <header className="border-b border-border bg-background sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
@@ -28,11 +37,11 @@ export function DashboardHeader() {
           
           <div className="flex items-center gap-3">
             <div className="text-right hidden md:block">
-              <p className="text-sm font-medium text-foreground">Welcome back</p>
+              <p className="text-sm font-medium text-foreground">Welcome back, {displayName}</p>
               <p className="text-xs text-muted-foreground">Admin</p>
             </div>
             <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-              <span className="text-sm font-medium text-primary">A</span>
+              <span className="text-sm font-medium text-primary">{initials}</span>
             </div>
           </div>
         </div>

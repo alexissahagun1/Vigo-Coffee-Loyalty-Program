@@ -25,13 +25,15 @@ export async function GET(req: NextRequest) {
   console.log('====================================');
 
   // 0. Validate required environment variables first
-  if (!process.env.APPLE_PASS_CERT_BASE64 || !process.env.APPLE_WWDR_CERT_BASE64) {
+  if (!process.env.APPLE_PASS_CERT_BASE64 || !process.env.APPLE_PASS_KEY_BASE64 || !process.env.APPLE_WWDR_CERT_BASE64) {
     return new NextResponse(
       JSON.stringify({ 
         error: 'Apple Pass certificates not configured',
         debug: {
           hasCert: !!process.env.APPLE_PASS_CERT_BASE64,
           certLength: process.env.APPLE_PASS_CERT_BASE64?.length || 0,
+          hasKey: !!process.env.APPLE_PASS_KEY_BASE64,
+          keyLength: process.env.APPLE_PASS_KEY_BASE64?.length || 0,
           hasWwdr: !!process.env.APPLE_WWDR_CERT_BASE64,
           wwdrLength: process.env.APPLE_WWDR_CERT_BASE64?.length || 0,
         }
@@ -153,11 +155,13 @@ export async function GET(req: NextRequest) {
 
   // Initialize the Pass
   // We decode the Base64 keys back to Buffers here
+  // IMPORTANT: signerKey must be the private key, NOT the certificate
+  // Using the certificate as the key will cause Apple Wallet to reject the pass
   const pass = new PKPass(
     {}, // FileBuffers - not loading from files
     {
       signerCert: Buffer.from(process.env.APPLE_PASS_CERT_BASE64, 'base64'),
-      signerKey: Buffer.from(process.env.APPLE_PASS_KEY_BASE64 || process.env.APPLE_PASS_CERT_BASE64, 'base64'),
+      signerKey: Buffer.from(process.env.APPLE_PASS_KEY_BASE64, 'base64'),
       wwdr: Buffer.from(process.env.APPLE_WWDR_CERT_BASE64, 'base64'),
       signerKeyPassphrase: process.env.APPLE_PASS_PASSWORD
     },
@@ -268,18 +272,28 @@ export async function GET(req: NextRequest) {
   }
 
   // Balance in top right corner (like airline flight numbers) - headerFields
+  // Ensure points_balance is a valid number - Apple Wallet rejects null/undefined in string concatenation
+  const pointsBalance = Number(finalProfile.points_balance) || 0;
   pass.headerFields.push({
     key: 'balance',
     label: 'BALANCE',
-    value: finalProfile.points_balance + ' pts',
+    value: `${pointsBalance} pts`,
     textAlignment: 'PKTextAlignmentRight'
   });
 
   // Row 1: Member name (medium text in secondaryFields)
+  // Ensure we have a valid non-empty string - Apple Wallet rejects empty strings
+  // The || operator doesn't catch empty strings, so we need to explicitly check and trim
+  let memberName = finalProfile.full_name?.trim() || user.email?.trim() || 'Valued Customer';
+  memberName = memberName.trim(); // Final trim to ensure no whitespace-only strings
+  if (!memberName) {
+    // Fallback if somehow all are empty (shouldn't happen, but safety check)
+    memberName = 'Valued Customer';
+  }
   pass.secondaryFields.push({
     key: 'member',
     label: 'MEMBER',
-    value: finalProfile.full_name || user.email || 'Valued Customer',
+    value: memberName,
     textAlignment: 'PKTextAlignmentLeft'
   });
 
@@ -309,26 +323,59 @@ export async function GET(req: NextRequest) {
   });
 
   // 5. Debug: Log pass contents before generation
+  const passAny = pass as any;
+  console.log('📋 Pass configuration:', {
+    type: pass.type,
+    headerFieldsCount: pass.headerFields?.length || 0,
+    secondaryFieldsCount: pass.secondaryFields?.length || 0,
+    auxiliaryFieldsCount: pass.auxiliaryFields?.length || 0,
+    backFieldsCount: pass.backFields?.length || 0,
+    hasBarcode: !!(passAny.barcodes?.length),
+    headerFields: pass.headerFields?.map((f: any) => ({ key: f.key, label: f.label, value: String(f.value).substring(0, 50) })),
+    secondaryFields: pass.secondaryFields?.map((f: any) => ({ key: f.key, label: f.label, value: String(f.value).substring(0, 50) })),
+    auxiliaryFields: pass.auxiliaryFields?.map((f: any) => ({ key: f.key, label: f.label, value: String(f.value).substring(0, 50) }))
+  });
+  
+  // Also try to inspect the pass structure if possible
   try {
-    const passJson = JSON.parse(JSON.stringify(pass));
-    console.log('📋 Pass configuration:', {
-      type: pass.type,
-      backgroundColor: passJson.backgroundColor,
-      hasBackgroundImage: !!passJson.images?.background,
-      hasStripImage: !!passJson.images?.strip,
-      images: Object.keys(passJson.images || {}),
-      primaryFields: passJson.storeCard?.primaryFields?.length || 0,
-      secondaryFields: passJson.storeCard?.secondaryFields?.length || 0,
-      auxiliaryFields: passJson.storeCard?.auxiliaryFields?.length || 0
-    });
-  } catch (e) {
-    console.log('⚠️ Could not serialize pass for debugging');
+    // Check if pass has the expected structure
+    if (passAny.passJson) {
+      const passJson = passAny.passJson;
+      console.log('📋 Pass.json structure:', {
+        passTypeIdentifier: passJson.passTypeIdentifier,
+        serialNumber: passJson.serialNumber,
+        hasWebServiceURL: !!passJson.webServiceURL,
+        hasAuthenticationToken: !!passJson.authenticationToken,
+        storeCardFields: {
+          headerFields: passJson.storeCard?.headerFields?.length || 0,
+          secondaryFields: passJson.storeCard?.secondaryFields?.length || 0,
+          auxiliaryFields: passJson.storeCard?.auxiliaryFields?.length || 0,
+          backFields: passJson.storeCard?.backFields?.length || 0
+        },
+        images: Object.keys(passJson.images || {})
+      });
+    }
+  } catch (e: any) {
+    console.log('⚠️ Could not inspect pass.json structure:', e?.message);
   }
 
   // 6. Generate and Serve the File
   try {
+    console.log('🔄 Generating pass buffer...');
     const buffer = pass.getAsBuffer();
     console.log('✅ Pass generated successfully, size:', buffer.length, 'bytes');
+    
+    // Validate buffer is not empty
+    if (!buffer || buffer.length === 0) {
+      throw new Error('Generated pass buffer is empty');
+    }
+    
+    // Validate it's a valid PKPass file (should start with PK or be a ZIP)
+    const bufferStart = buffer.subarray(0, 2);
+    const isZip = bufferStart[0] === 0x50 && bufferStart[1] === 0x4B; // PK (ZIP signature)
+    if (!isZip) {
+      console.warn('⚠️ Pass buffer does not appear to be a valid ZIP file');
+    }
     
     return new NextResponse(buffer as unknown as BodyInit, {
       headers: {
@@ -338,11 +385,18 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('❌ Error generating pass:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      name: error?.name,
+      code: error?.code,
+      stack: error?.stack?.split('\n').slice(0, 5).join('\n')
+    });
     return new NextResponse(
       JSON.stringify({ 
         error: 'Failed to generate pass', 
         details: error?.message,
-        stack: error?.stack 
+        code: error?.code,
+        name: error?.name
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );

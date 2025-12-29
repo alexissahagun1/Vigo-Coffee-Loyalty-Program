@@ -499,3 +499,4 @@ curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-89
 **Last Updated:** December 24, 2025  
 **Production URL:** `https://vigo-coffee-loyalty-program.vercel.app`
 
+

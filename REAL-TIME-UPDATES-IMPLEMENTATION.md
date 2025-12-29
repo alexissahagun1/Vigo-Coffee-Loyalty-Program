@@ -167,3 +167,4 @@ To enable automatic updates when points change:
 - Implement push notifications for faster updates
 - Check server logs for update requests
 
+

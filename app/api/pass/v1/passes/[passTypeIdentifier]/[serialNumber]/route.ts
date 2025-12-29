@@ -20,6 +20,15 @@ export async function GET(
   { params }: { params: Promise<{ passTypeIdentifier: string; serialNumber: string }> }
 ) {
   try {
+    // Validate required environment variables first
+    if (!process.env.APPLE_PASS_CERT_BASE64 || !process.env.APPLE_PASS_KEY_BASE64 || !process.env.APPLE_WWDR_CERT_BASE64) {
+      console.error('❌ Apple Pass certificates not configured');
+      return new NextResponse(
+        JSON.stringify({ error: 'Apple Pass certificates not configured' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { passTypeIdentifier, serialNumber } = await params;
     
     console.log(`📱 Apple fetching pass update for serial: ${serialNumber}`);
@@ -117,11 +126,13 @@ export async function GET(
     passJsonProps.authenticationToken = generateAuthToken(serialNumber);
 
     // Initialize the Pass (same logic as wallet route)
+    // IMPORTANT: signerKey must be the private key, NOT the certificate
+    // Using the certificate as the key will cause Apple Wallet to reject the pass
     const pass = new PKPass(
       {},
       {
         signerCert: Buffer.from(process.env.APPLE_PASS_CERT_BASE64, 'base64'),
-        signerKey: Buffer.from(process.env.APPLE_PASS_KEY_BASE64 || process.env.APPLE_PASS_CERT_BASE64, 'base64'),
+        signerKey: Buffer.from(process.env.APPLE_PASS_KEY_BASE64, 'base64'),
         wwdr: Buffer.from(process.env.APPLE_WWDR_CERT_BASE64, 'base64'),
         signerKeyPassphrase: process.env.APPLE_PASS_PASSWORD
       },
