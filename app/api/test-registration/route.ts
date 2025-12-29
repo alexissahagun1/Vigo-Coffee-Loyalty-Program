@@ -4,8 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * Test endpoint to check registration status and verify endpoint accessibility
  * GET /api/test-registration?userId=xxx
- * Note: API routes are dynamic by default in Next.js, so this route will automatically
- * skip prerendering when using nextUrl.searchParams
  */
 export async function GET(req: NextRequest) {
   try {
@@ -66,4 +64,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

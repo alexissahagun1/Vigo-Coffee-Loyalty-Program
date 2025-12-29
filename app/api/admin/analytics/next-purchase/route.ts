@@ -4,7 +4,7 @@ import { predictNextPurchase, Customer, Transaction } from "@/lib/analytics/pred
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "50");
     const daysAhead = parseInt(searchParams.get("daysAhead") || "14");
 
@@ -118,4 +118,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

@@ -9,15 +9,13 @@ const POINTS_FOR_COFFEE = 10; // Customer earns a coffee reward every 10 points
 const POINTS_FOR_MEAL = 25; // Customer earns a meal reward every 25 points
 
 // Export a GET handler function that Next.js will call when /api/scan is accessed
-// Note: API routes are dynamic by default in Next.js, so this route will automatically
-// skip prerendering when using request.url
 // This endpoint fetches customer information and calculates available rewards
 export async function GET(req: NextRequest) {
     // Wrap everything in try-catch to handle any errors gracefully
     try {
         // Extract the URL search parameters from the request
         // Example: /api/scan?userId=123-456-789
-        const { searchParams } = new URL(req.url);
+        const searchParams = req.nextUrl.searchParams;
         
         // Get the userId parameter from the query string
         // This is the customer's UUID that was scanned from the QR code

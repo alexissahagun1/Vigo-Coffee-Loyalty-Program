@@ -10,7 +10,7 @@ import {
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const searchParams = req.nextUrl.searchParams;
     const metric = searchParams.get("metric") || "purchases"; // purchases, revenue
     const periods = parseInt(searchParams.get("periods") || "7");
     const method = searchParams.get("method") || "linear"; // linear, moving, exponential
@@ -176,4 +176,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-

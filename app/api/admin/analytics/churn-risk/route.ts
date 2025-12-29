@@ -4,7 +4,7 @@ import { calculateChurnRisk, Customer, Transaction } from "@/lib/analytics/predi
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const searchParams = req.nextUrl.searchParams;
     const method = searchParams.get("method") || "rules"; // rules, logistic
     const limit = parseInt(searchParams.get("limit") || "50");
 

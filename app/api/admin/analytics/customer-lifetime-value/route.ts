@@ -4,7 +4,7 @@ import { calculateCustomerLifetimeValue, Customer, Transaction } from "@/lib/ana
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const searchParams = req.nextUrl.searchParams;
     const limit = parseInt(searchParams.get("limit") || "50");
     const averagePurchaseValue = parseFloat(searchParams.get("averagePurchaseValue") || "1");
 
@@ -108,4 +108,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
