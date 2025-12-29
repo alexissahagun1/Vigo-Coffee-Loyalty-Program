@@ -110,17 +110,24 @@ export async function generateGoogleWalletPass(
   // Use heroImage for the tiger grid (banner at top of card)
   // This is the recommended approach for dynamic images in Google Wallet
   if (backgroundImageUrl) {
-    loyaltyObject.heroImage = {
-      sourceUri: {
-        uri: backgroundImageUrl,
-      },
-      contentDescription: {
-        defaultValue: {
-          language: 'en-US',
-          value: `Loyalty card with ${points} points - ${rewardStatus.rewardMessage || 'Keep shopping!'}`,
+    // Ensure the URL is a valid string (not undefined or null)
+    const imageUrl = String(backgroundImageUrl).trim();
+    if (imageUrl && imageUrl.startsWith('http')) {
+      loyaltyObject.heroImage = {
+        kind: 'walletobjects#image',
+        sourceUri: {
+          uri: imageUrl,
         },
-      },
-    };
+        contentDescription: {
+          defaultValue: {
+            language: 'en-US',
+            value: `Loyalty card with ${points} points - ${rewardStatus.rewardMessage || 'Keep shopping!'}`,
+          },
+        },
+      };
+    } else {
+      console.warn(`⚠️  Invalid backgroundImageUrl format: ${backgroundImageUrl}`);
+    }
   }
 
   return loyaltyObject;
