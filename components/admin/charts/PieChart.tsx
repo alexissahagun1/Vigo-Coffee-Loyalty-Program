@@ -97,13 +97,13 @@ export function PieChart({
                 border: "1px solid hsl(var(--border))",
                 borderRadius: "6px",
               }}
-              formatter={(value: number | undefined, name: string, props: any) => {
+              formatter={(value: number | undefined, name: string | undefined, props: any) => {
                 const item = filteredData.find((d) => d.name === name);
                 const numValue = value ?? 0;
                 const percentage = total > 0 ? ((numValue / total) * 100).toFixed(1) : "0";
                 return [
                   `${numValue} (${percentage}%)`,
-                  item?.description || name,
+                  item?.description || name || "",
                 ];
               }}
             />
