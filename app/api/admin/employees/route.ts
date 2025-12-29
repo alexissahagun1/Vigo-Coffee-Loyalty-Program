@@ -121,7 +121,7 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.js
+      return NextResponse.json(
         { error: "Employee ID is required" },
         { status: 400 }
       );
