@@ -9,3 +9,4 @@ declare module 'ml-regression' {
     score(x: number[], y: number[]): ScoreResult;
   }
 }
+
