@@ -3,6 +3,7 @@ import { createServiceRoleClient } from '@/lib/supabase/server';
 import { generateLoyaltyCardBackground } from '@/lib/loyalty-card/generate-background';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import sharp from 'sharp';
 
 /**
  * GET /api/google-wallet/background/[userId]
@@ -88,22 +89,41 @@ export async function GET(
     // Generate background with current points (use 0 if profile not found)
     const pointsBalance = profile?.points_balance ?? 0;
     console.log(`   Generating background image with ${pointsBalance} points...`);
-    const backgroundBuffer = await generateLoyaltyCardBackground(
+    const fullBackgroundBuffer = await generateLoyaltyCardBackground(
       pointsBalance,
       logoBuffer,
       redTigerBuffer,
       whiteTigerBuffer
     );
-    console.log(`   ✅ Background image generated (${backgroundBuffer.length} bytes)`);
+    console.log(`   ✅ Full background image generated (${fullBackgroundBuffer.length} bytes)`);
     
-    // Return image with cache-busting headers
+    // For Google Wallet hero image, we only want the top section (black with tigers)
+    // Extract only the top 70% which contains the black background and tigers
+    // This matches the topSectionHeight calculation in generateLoyaltyCardBackground
+    const backgroundMetadata = await sharp(fullBackgroundBuffer).metadata();
+    const topSectionHeight = Math.floor((backgroundMetadata.height || 234) * 0.7);
+    
+    console.log(`   Extracting top section (height: ${topSectionHeight}px) for hero image...`);
+    const heroImageBuffer = await sharp(fullBackgroundBuffer)
+      .extract({
+        left: 0,
+        top: 0,
+        width: backgroundMetadata.width || 390,
+        height: topSectionHeight
+      })
+      .png()
+      .toBuffer();
+    
+    console.log(`   ✅ Hero image extracted (${heroImageBuffer.length} bytes) - black section with tigers only`);
+    
+    // Return only the top section (black with tigers) for Google Wallet hero image
     // The timestamp query param in the URL already handles cache busting
     // Convert Buffer to Uint8Array for NextResponse compatibility
     // Add CORS headers to allow Google Wallet to fetch the image
     const responseTime = Date.now() - startTime;
-    console.log(`   ✅ Returning image (took ${responseTime}ms)`);
+    console.log(`   ✅ Returning hero image (took ${responseTime}ms)`);
     
-    return new NextResponse(new Uint8Array(backgroundBuffer), {
+    return new NextResponse(new Uint8Array(heroImageBuffer), {
       headers: {
         'Content-Type': 'image/png',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -111,7 +131,7 @@ export async function GET(
         'Expires': '0',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
-        'Content-Length': backgroundBuffer.length.toString(),
+        'Content-Length': heroImageBuffer.length.toString(),
       },
     });
   } catch (error: any) {
