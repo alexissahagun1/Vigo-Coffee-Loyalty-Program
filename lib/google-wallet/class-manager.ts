@@ -141,6 +141,13 @@ export async function ensureLoyaltyClassExists(baseUrl: string): Promise<string>
           value: 'Loyalty Program',
         },
       },
+      // Add localizedAccountName to make customer name display prominently on the pass
+      localizedAccountName: {
+        defaultValue: {
+          language: 'en-US',
+          value: 'Member Name', // This is a template - actual name comes from object.accountName
+        },
+      },
     };
 
     try {

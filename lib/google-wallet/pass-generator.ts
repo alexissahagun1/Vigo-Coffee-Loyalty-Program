@@ -102,8 +102,15 @@ export async function generateGoogleWalletPass(
     loyaltyPoints: loyaltyPoints,
     barcode: barcode,
     textModulesData: textModulesData,
-    // Note: hexBackgroundColor, localizedAccountName, and localizedIssuerName 
-    // are set at the class level, not the object level
+    // Add localizedAccountName at object level to display customer name prominently on the pass
+    // This will show the customer's name as the primary text on the card (replacing program name display)
+    localizedAccountName: {
+      defaultValue: {
+        language: 'en-US',
+        value: memberName,
+      },
+    },
+    // Note: hexBackgroundColor and localizedIssuerName are set at the class level
   };
 
   // Conditionally add heroImage if URL is provided
