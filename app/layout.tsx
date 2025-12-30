@@ -15,8 +15,12 @@ export const metadata: Metadata = {
   title: "Vigo Coffee - Loyalty Program",
   description: "Join the Vigo Coffee loyalty program and earn rewards with every purchase",
   icons: {
-    icon: "/icon.png",
+    icon: [
+      { url: "/icon.png", sizes: "any" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
     apple: "/icon.png",
+    shortcut: "/favicon.ico",
   },
   openGraph: {
     title: "Vigo Coffee - Loyalty Program",
