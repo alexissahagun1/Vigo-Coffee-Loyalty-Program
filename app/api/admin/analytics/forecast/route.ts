@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const metric = searchParams.get("metric") || "purchases"; // purchases, revenue
-    const periods = parseInt(searchParams.get("periods") || "7");
+    const periods = Math.max(1, Math.min(365, parseInt(searchParams.get("periods") || "7") || 7));
     const method = searchParams.get("method") || "linear"; // linear, moving, exponential
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");

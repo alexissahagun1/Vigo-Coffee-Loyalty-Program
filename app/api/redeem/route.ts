@@ -89,14 +89,44 @@ export async function POST(req: NextRequest) {
         
         // Select the appropriate array based on reward type
         // If type is "coffee", get the coffees array; if "meal", get the meals array
-        const rewardArray = type === "coffee" ? redeemedRewards.coffees || [] : redeemedRewards.meals || [];
+        // Normalize to numbers (JSONB might return strings)
+        const rewardArray = type === "coffee" 
+            ? (Array.isArray(redeemedRewards.coffees) ? redeemedRewards.coffees.map(Number).filter((n: number) => !isNaN(n)) : [])
+            : (Array.isArray(redeemedRewards.meals) ? redeemedRewards.meals.map(Number).filter((n: number) => !isNaN(n)) : []);
 
         // Check if this reward threshold has already been redeemed
-        // If the points value is already in the array, the customer already redeemed it
-        if (rewardArray.includes(points)) {
+        // Normalize points to number for comparison (array is already normalized)
+        const pointsNumber = Number(points);
+        if (isNaN(pointsNumber)) {
             return NextResponse.json(
-                { error: "Reward already redeemed" }, // Error message
-                { status: 400 } // HTTP status code: 400 = Bad Request
+                { error: "Invalid points threshold value" },
+                { status: 400 }
+            );
+        }
+        if (rewardArray.includes(pointsNumber)) {
+            return NextResponse.json(
+                { error: "Reward already redeemed" },
+                { status: 400 }
+            );
+        }
+
+        // Validate that customer has enough points for this reward threshold
+        const currentPoints = Number(profile.points_balance) || 0;
+        if (currentPoints < pointsNumber) {
+            return NextResponse.json(
+                { error: `Customer only has ${currentPoints} points, but reward requires ${pointsNumber} points` },
+                { status: 400 }
+            );
+        }
+
+        // Validate that the points threshold is valid for the reward type
+        const POINTS_FOR_COFFEE = 10;
+        const POINTS_FOR_MEAL = 25;
+        const requiredPoints = type === "coffee" ? POINTS_FOR_COFFEE : POINTS_FOR_MEAL;
+        if (pointsNumber < requiredPoints || pointsNumber % requiredPoints !== 0) {
+            return NextResponse.json(
+                { error: `Invalid points threshold. ${type === "coffee" ? "Coffee" : "Meal"} rewards must be at ${requiredPoints} point intervals (${requiredPoints}, ${requiredPoints * 2}, ${requiredPoints * 3}, etc.)` },
+                { status: 400 }
             );
         }
 
@@ -104,9 +134,14 @@ export async function POST(req: NextRequest) {
         // We spread the existing redeemedRewards object to keep all existing data
         // Then we update the appropriate array (coffees or meals) by adding the new threshold
         // Example: If redeeming coffee at 20 points, add 20 to the coffees array
+        // Ensure we normalize all values to numbers
         const updatedRewards = {
-            ...redeemedRewards, // Keep existing redeemed rewards
-            [type === "coffee" ? "coffees" : "meals"]: [...rewardArray, points], // Add new threshold to array
+            coffees: type === "coffee" 
+                ? [...rewardArray, pointsNumber]
+                : (Array.isArray(redeemedRewards.coffees) ? redeemedRewards.coffees.map(Number).filter((n: number) => !isNaN(n)) : []),
+            meals: type === "meal"
+                ? [...rewardArray, pointsNumber]
+                : (Array.isArray(redeemedRewards.meals) ? redeemedRewards.meals.map(Number).filter((n: number) => !isNaN(n)) : []),
         };
 
         // Update the customer's profile in the database

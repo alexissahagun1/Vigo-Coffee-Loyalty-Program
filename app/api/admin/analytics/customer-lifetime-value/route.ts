@@ -5,8 +5,8 @@ import { calculateCustomerLifetimeValue, Customer, Transaction } from "@/lib/ana
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const averagePurchaseValue = parseFloat(searchParams.get("averagePurchaseValue") || "1");
+    const limit = Math.max(1, Math.min(1000, parseInt(searchParams.get("limit") || "50") || 50));
+    const averagePurchaseValue = Math.max(0.01, parseFloat(searchParams.get("averagePurchaseValue") || "1") || 1);
 
     const supabase = createServiceRoleClient();
 

@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const method = searchParams.get("method") || "rules"; // rules, logistic
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = Math.max(1, Math.min(1000, parseInt(searchParams.get("limit") || "50") || 50));
 
     const supabase = createServiceRoleClient();
 

@@ -75,7 +75,8 @@ export async function GET(req: NextRequest) {
 
         // Get the customer's current points balance, defaulting to 0 if null
         // This handles cases where the profile exists but points_balance is null
-        const points = profile.points_balance || 0;
+        // Normalize to number (JSONB might return string)
+        const points = Number(profile.points_balance) || 0;
         
         // Get the customer's redeemed rewards object, defaulting to empty arrays if null
         // Structure: { coffees: [10, 20], meals: [25] }
@@ -84,11 +85,17 @@ export async function GET(req: NextRequest) {
         
         // Extract the array of redeemed coffee reward thresholds
         // Example: [10, 20] means they redeemed coffee at 10 and 20 points
-        const redeemedCoffees = redeemedRewards.coffees || [];
+        // Normalize to numbers (JSONB might return strings)
+        const redeemedCoffees = Array.isArray(redeemedRewards.coffees)
+            ? redeemedRewards.coffees.map(Number).filter((n: number) => !isNaN(n))
+            : [];
         
         // Extract the array of redeemed meal reward thresholds
         // Example: [25] means they redeemed meal at 25 points
-        const redeemedMeals = redeemedRewards.meals || [];
+        // Normalize to numbers (JSONB might return strings)
+        const redeemedMeals = Array.isArray(redeemedRewards.meals)
+            ? redeemedRewards.meals.map(Number).filter((n: number) => !isNaN(n))
+            : [];
 
         // Initialize arrays to store available (unredeemed) rewards
         const availableCoffees: number[] = []; // Will contain: [10, 20, 30] etc.

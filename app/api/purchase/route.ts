@@ -55,8 +55,9 @@ export async function POST(req: NextRequest) {
         }
         // calculate new values
         // get current values from profile with fallback to 0 if null
-        const currentPoints = profile.points_balance || 0;
-        const currentPurchases = profile.total_purchases || 0;
+        // Normalize to numbers (JSONB might return strings or null)
+        const currentPoints = Number(profile.points_balance) || 0;
+        const currentPurchases = Number(profile.total_purchases) || 0;
 
         // Calculate new values, add 1 point and 1 purchase.
         const newPointsBalance = currentPoints + POINTS_PER_PURCHASE;

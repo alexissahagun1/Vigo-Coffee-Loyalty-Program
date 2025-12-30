@@ -5,8 +5,8 @@ import { predictNextPurchase, Customer, Transaction } from "@/lib/analytics/pred
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const daysAhead = parseInt(searchParams.get("daysAhead") || "14");
+    const limit = Math.max(1, Math.min(1000, parseInt(searchParams.get("limit") || "50") || 50));
+    const daysAhead = Math.max(1, Math.min(365, parseInt(searchParams.get("daysAhead") || "14") || 14));
 
     const supabase = createServiceRoleClient();
 

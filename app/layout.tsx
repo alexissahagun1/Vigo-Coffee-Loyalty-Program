@@ -12,8 +12,30 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "Vigo Coffee - Loyalty Program",
+  description: "Join the Vigo Coffee loyalty program and earn rewards with every purchase",
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
+  openGraph: {
+    title: "Vigo Coffee - Loyalty Program",
+    description: "Join the Vigo Coffee loyalty program and earn rewards with every purchase",
+    images: [
+      {
+        url: "/assets/vigo-banner.png",
+        width: 1200,
+        height: 630,
+        alt: "Vigo Coffee Loyalty Program",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Vigo Coffee - Loyalty Program",
+    description: "Join the Vigo Coffee loyalty program and earn rewards with every purchase",
+    images: ["/assets/vigo-banner.png"],
+  },
 };
 
 const geistSans = Geist({
