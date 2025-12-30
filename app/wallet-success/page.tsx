@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
-export default function WalletSuccessPage() {
+function WalletSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [walletType, setWalletType] = useState<string | null>(null);
@@ -64,6 +64,31 @@ export default function WalletSuccessPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="flex min-h-svh w-full items-center justify-center p-6 bg-gradient-to-br from-amber-50 to-orange-50">
+      <div className="w-full max-w-md">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <Loader2 className="w-16 h-16 text-amber-600 animate-spin" />
+            </div>
+            <CardTitle className="text-2xl">Loading...</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+export default function WalletSuccessPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <WalletSuccessContent />
+    </Suspense>
   );
 }
 
