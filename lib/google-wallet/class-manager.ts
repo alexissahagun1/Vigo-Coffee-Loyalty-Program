@@ -67,10 +67,16 @@ export async function ensureLoyaltyClassExists(baseUrl: string): Promise<string>
   try {
     // Try to get existing class
     try {
-      await wallet.loyaltyclass.get({
+      const classResponse = await wallet.loyaltyclass.get({
         resourceId: classId,
       });
+      const existingClass = classResponse.data;
+      const reviewStatus = existingClass.reviewStatus || 'UNKNOWN';
       console.log(`✅ Loyalty class already exists: ${classId}`);
+      console.log(`   Review Status: ${reviewStatus}`);
+      if (reviewStatus !== 'APPROVED') {
+        console.warn(`   ⚠️  WARNING: Class is ${reviewStatus}, not APPROVED. Passes may not be addable until approved.`);
+      }
       return classId;
     } catch (getError: any) {
       // Class doesn't exist or error checking - proceed to create
