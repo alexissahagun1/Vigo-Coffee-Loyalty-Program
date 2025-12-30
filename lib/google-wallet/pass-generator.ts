@@ -109,8 +109,8 @@ export async function generateGoogleWalletPass(
   // Conditionally add heroImage if URL is provided
   // Use heroImage for the tiger grid (banner at top of card)
   // This is the recommended approach for dynamic images in Google Wallet
-  // TEMPORARILY DISABLED FOR TESTING - ngrok interstitial page blocking Google Wallet
-  if (backgroundImageUrl && false) {
+  // Hero images are supported on Android Google Wallet
+  if (backgroundImageUrl) {
     // Ensure the URL is a valid string (not undefined or null)
     const imageUrl = String(backgroundImageUrl).trim();
     if (imageUrl && imageUrl.startsWith('http')) {
@@ -126,9 +126,12 @@ export async function generateGoogleWalletPass(
           },
         },
       };
+      console.log(`✅ Hero image enabled: ${imageUrl}`);
     } else {
       console.warn(`⚠️  Invalid backgroundImageUrl format: ${backgroundImageUrl}`);
     }
+  } else {
+    console.log(`ℹ️  Hero image not set - backgroundImageUrl not provided`);
   }
 
   return loyaltyObject;
