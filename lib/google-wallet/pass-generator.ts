@@ -97,20 +97,13 @@ export async function generateGoogleWalletPass(
     id: objectId, // Full object resource ID: issuerId.userId (alphanumeric only)
     classId: classId, // Class resource ID (from console or constructed)
     state: 'ACTIVE',
-    accountName: memberName,
+    accountName: memberName, // This should display the customer name on the pass
     accountId: userId,
     loyaltyPoints: loyaltyPoints,
     barcode: barcode,
     textModulesData: textModulesData,
-    // Add localizedAccountName at object level to display customer name prominently on the pass
-    // This will show the customer's name as the primary text on the card (replacing program name display)
-    localizedAccountName: {
-      defaultValue: {
-        language: 'en-US',
-        value: memberName,
-      },
-    },
-    // Note: hexBackgroundColor and localizedIssuerName are set at the class level
+    // Note: programName and localizedProgramName are class-level only and cannot be personalized per user
+    // The accountName field above should display the customer name prominently
   };
 
   // Conditionally add heroImage if URL is provided
@@ -147,38 +140,37 @@ export async function generateGoogleWalletPass(
 /**
  * Generates a signed JWT token for "Add to Google Wallet" link
  * Google Wallet requires a signed JWT containing the object ID, not just the raw object ID
- * @param objectId - The loyalty object ID (e.g., '3388000000023063726.422fb5cb7ba6ff31')
- * @param serviceAccountEmail - Service account email (issuer)
- * @param serviceAccountPrivateKey - Service account private key for signing
+ * @param loyaltyObject - The loyalty object to encode
  * @returns Signed JWT token string
  */
-export function generateAddToWalletJWT(
-  objectId: string,
-  serviceAccountEmail: string,
-  serviceAccountPrivateKey: string
-): string {
+export async function generateAddToWalletJWT(
+  loyaltyObject: walletobjects_v1.Schema$LoyaltyObject,
+): Promise<string> {
   const jwt = require('jsonwebtoken');
+  const { getServiceAccountCredentials } = await import('./auth');
+  const { getBaseUrl } = await import('./image-urls');
+
+  const credentials = getServiceAccountCredentials();
 
   // Define the JWT claims (payload)
   // This is the structure Google Wallet expects for "Save to Wallet" links
   const claims = {
-    iss: serviceAccountEmail, // Issuer (service account email)
+    iss: credentials.client_email, // Issuer (service account email)
     aud: 'google', // Audience (must be 'google')
+    origins: [getBaseUrl()], // Allowed origins for the JWT
     typ: 'savetowallet', // Type (must be 'savetowallet')
     payload: {
       loyaltyObjects: [
         {
-          id: objectId, // The object ID we created
+          id: loyaltyObject.id, // The object ID we created
         },
       ],
     },
-    iat: Math.floor(Date.now() / 1000), // Issued at (current timestamp)
-    exp: Math.floor(Date.now() / 1000) + 3600, // Expires in 1 hour
   };
 
   // Sign the JWT using RS256 algorithm with the private key
   // The private key needs to have newlines preserved
-  const privateKey = serviceAccountPrivateKey.replace(/\\n/g, '\n');
+  const privateKey = credentials.private_key.replace(/\\n/g, '\n');
   
   const token = jwt.sign(claims, privateKey, {
     algorithm: 'RS256',

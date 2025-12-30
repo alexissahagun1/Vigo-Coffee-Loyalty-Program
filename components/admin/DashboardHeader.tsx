@@ -1,16 +1,24 @@
 'use client';
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { QrCode } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface DashboardHeaderProps {
   username?: string;
 }
 
 export function DashboardHeader({ username }: DashboardHeaderProps) {
+  const router = useRouter();
   const displayName = username || 'Admin';
   const initials = displayName
     .toUpperCase()
     .slice(0, 2);
+
+  const handleScanClick = () => {
+    router.push('/scan');
+  };
 
   return (
     <header className="border-b border-border bg-background sticky top-0 z-50">
@@ -36,6 +44,15 @@ export function DashboardHeader({ username }: DashboardHeaderProps) {
           </div>
           
           <div className="flex items-center gap-3">
+            <Button
+              onClick={handleScanClick}
+              variant="default"
+              className="gap-2"
+            >
+              <QrCode className="w-4 h-4" />
+              <span className="hidden sm:inline">Scan Customer</span>
+              <span className="sm:hidden">Scan</span>
+            </Button>
             <div className="text-right hidden md:block">
               <p className="text-sm font-medium text-foreground">Welcome back, {displayName}</p>
               <p className="text-xs text-muted-foreground">Admin</p>
