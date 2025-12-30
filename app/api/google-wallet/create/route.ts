@@ -387,12 +387,7 @@ export async function GET(req: NextRequest) {
       // The JWT must contain the object ID in the payload
       let addToWalletUrl: string;
       try {
-        const credentials = getServiceAccountCredentials();
-        const jwtToken = generateAddToWalletJWT(
-          objectId,
-          credentials.client_email,
-          credentials.private_key
-        );
+        const jwtToken = await generateAddToWalletJWT(loyaltyObject);
         addToWalletUrl = `https://pay.google.com/gp/v/save/${jwtToken}`;
         console.log(`✅ Generated signed JWT for Add to Wallet link`);
       } catch (jwtError: any) {
