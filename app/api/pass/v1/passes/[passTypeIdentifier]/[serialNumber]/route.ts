@@ -14,7 +14,12 @@ import { generateAuthToken } from '@/lib/passkit/auth-token';
  * Called by Apple when checking for updates or after push notification
  * 
  * This endpoint regenerates the pass with current data from the database
+ * 
+ * Force dynamic rendering to prevent caching and ensure fresh data
  */
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ passTypeIdentifier: string; serialNumber: string }> }
@@ -29,7 +34,8 @@ export async function GET(
   console.log(`[${timestamp}] 📱 Headers:`, {
     'user-agent': req.headers.get('user-agent'),
     'if-modified-since': req.headers.get('if-modified-since'),
-    'authorization': req.headers.get('authorization') ? 'Present' : 'Missing'
+    'authorization': req.headers.get('authorization') ? 'Present' : 'Missing',
+    'cache-control': req.headers.get('cache-control'),
   });
   
   try {
@@ -63,6 +69,7 @@ export async function GET(
     
     // Fetch current user data (serialNumber is the user ID)
     // Use service role client because Apple's servers don't have authentication cookies
+    // IMPORTANT: Always fetch fresh data - no caching
     console.log(`🔍 Fetching profile for user: ${serialNumber}`);
     const supabase = createServiceRoleClient();
     const { data: profile, error: profileError } = await supabase
@@ -70,6 +77,16 @@ export async function GET(
       .select('*')
       .eq('id', serialNumber)
       .single();
+    
+    // Log the fetched data to verify it's current
+    if (profile) {
+      console.log(`📊 Fetched profile data:`, {
+        id: profile.id,
+        points_balance: profile.points_balance,
+        updated_at: profile.updated_at,
+        points_type: typeof profile.points_balance,
+      });
+    }
 
     if (profileError) {
       console.error(`❌ Database error fetching profile:`, profileError);
@@ -85,16 +102,41 @@ export async function GET(
     console.log(`   Profile updated_at: ${profile.updated_at || 'NOT SET'}`);
 
     // Check if pass needs update (compare updated_at with If-Modified-Since)
-    if (ifModifiedSince && profile.updated_at) {
-      const lastModified = new Date(profile.updated_at);
-      const ifModified = new Date(ifModifiedSince);
-      console.log(`   Comparing timestamps: lastModified=${lastModified.toISOString()}, ifModified=${ifModified.toISOString()}`);
-      if (lastModified <= ifModified) {
-        // No changes, return 304 Not Modified
-        console.log(`   ⏭️  Pass not modified, returning 304 Not Modified`);
-        return new NextResponse(null, { status: 304 });
+    // IMPORTANT: Use strict comparison with millisecond precision to avoid false 304s
+    // Also check if pass was recently updated (within last 10 minutes) - always regenerate in that case
+    const RECENT_UPDATE_THRESHOLD_MS = 10 * 60 * 1000; // 10 minutes
+    const now = Date.now();
+    const lastModifiedTime = profile.updated_at ? new Date(profile.updated_at).getTime() : 0;
+    const timeSinceUpdate = now - lastModifiedTime;
+    const wasRecentlyUpdated = timeSinceUpdate < RECENT_UPDATE_THRESHOLD_MS;
+    
+    console.log(`   Time since last update: ${Math.round(timeSinceUpdate / 1000)}s (${wasRecentlyUpdated ? 'RECENT' : 'OLD'})`);
+    
+    if (wasRecentlyUpdated) {
+      // Pass was updated recently - always regenerate to ensure fresh data
+      console.log(`   🔄 Pass was updated recently (within last 10 minutes), forcing regeneration`);
+    } else if (ifModifiedSince && profile.updated_at) {
+      const lastModified = new Date(profile.updated_at).getTime();
+      const ifModified = new Date(ifModifiedSince).getTime();
+      const timeDiff = lastModified - ifModified;
+      console.log(`   Comparing timestamps: lastModified=${new Date(profile.updated_at).toISOString()}, ifModified=${ifModifiedSince}`);
+      console.log(`   Time difference: ${timeDiff}ms (positive = pass is newer)`);
+      
+      // Only return 304 if pass is definitely older (not just within tolerance)
+      // Changed from <= 1000 to <= -1000 to be more strict - only return 304 if pass is definitely older
+      if (timeDiff <= -1000) {
+        // Pass is definitely older (more than 1 second older), return 304 Not Modified
+        console.log(`   ⏭️  Pass is older than client version, returning 304 Not Modified`);
+        return new NextResponse(null, { 
+          status: 304,
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate',
+            'Last-Modified': new Date(profile.updated_at).toUTCString(),
+          }
+        });
       } else {
-        console.log(`   ✅ Pass has been modified, generating update`);
+        // Pass is newer or within 1 second (clock skew) - generate update
+        console.log(`   ✅ Pass has been modified (${timeDiff}ms newer or within clock skew), generating update`);
       }
     } else if (ifModifiedSince && !profile.updated_at) {
       console.log(`   ⚠️  If-Modified-Since header present but profile.updated_at is not set - generating pass anyway`);
@@ -216,7 +258,9 @@ export async function GET(
     pass.type = 'storeCard';
 
     // Add pass fields (same as wallet route)
-    const points = profile.points_balance || 0;
+    // IMPORTANT: Normalize points to number to handle JSONB string conversion
+    const points = Number(profile.points_balance) || 0;
+    console.log(`📊 Using points for pass generation: ${points} (type: ${typeof points})`);
     const POINTS_FOR_COFFEE = 10;
     const POINTS_FOR_MEAL = 25;
 
@@ -254,6 +298,7 @@ export async function GET(
 
     // Balance in top right corner - ensure points_balance is a valid number
     const pointsBalance = Number(profile.points_balance) || 0;
+    console.log(`📊 Setting pass balance field to: ${pointsBalance} pts`);
     pass.headerFields.push({
       key: 'balance',
       label: 'BALANCE',
@@ -298,13 +343,17 @@ export async function GET(
     // Generate pass buffer
     const buffer = pass.getAsBuffer();
     
-    console.log(`[${timestamp}] ✅ Pass updated for serial number: ${serialNumber}, points: ${points}`);
+    console.log(`[${timestamp}] ✅ Pass generated for serial number: ${serialNumber}`);
+    console.log(`[${timestamp}] 📊 Pass contains: ${pointsBalance} points (from profile.points_balance: ${profile.points_balance})`);
     console.log(`[${timestamp}] 📱 Returning .pkpass file to Apple`);
     
     return new NextResponse(buffer as unknown as BodyInit, {
       headers: {
         'Content-Type': 'application/vnd.apple.pkpass',
         'Last-Modified': new Date(profile.updated_at || Date.now()).toUTCString(),
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
     });
   } catch (error: any) {

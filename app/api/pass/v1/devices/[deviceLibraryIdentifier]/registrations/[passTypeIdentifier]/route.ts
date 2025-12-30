@@ -51,7 +51,8 @@ export async function GET(
     }
 
     // Get registered passes for this device
-    const supabase = await createClient();
+    // Use service role client because Apple's servers don't have user authentication
+    const supabase = createServiceRoleClient();
     const { data: registrations, error } = await supabase
       .from('pass_registrations')
       .select('serial_number')

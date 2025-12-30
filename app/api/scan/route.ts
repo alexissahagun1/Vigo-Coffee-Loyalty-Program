@@ -11,6 +11,10 @@ const POINTS_FOR_MEAL = 25; // Customer earns a meal reward every 25 points
 
 // Export a GET handler function that Next.js will call when /api/scan is accessed
 // This endpoint fetches customer information and calculates available rewards
+// Force dynamic rendering to prevent caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
     // Wrap everything in try-catch to handle any errors gracefully
     try {
@@ -129,6 +133,7 @@ export async function GET(req: NextRequest) {
 
         // Return a successful response with all the customer information
         // This JSON will be sent back to the frontend (the scan page)
+        // Add cache-control headers to prevent caching and ensure fresh data
         return NextResponse.json({
             success: true, // Indicates the request succeeded
             customer: {
@@ -143,6 +148,12 @@ export async function GET(req: NextRequest) {
                     coffees: redeemedCoffees, // Array of redeemed coffee reward thresholds
                     meals: redeemedMeals, // Array of redeemed meal reward thresholds
                 },
+            },
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
             },
         });
     } catch (error: any) {

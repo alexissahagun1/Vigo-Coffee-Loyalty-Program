@@ -285,7 +285,14 @@ export default function ScanPage() {
         await stopScanning();
 
         try {
-            const response = await fetch(`/api/scan?userId=${encodeURIComponent(userId.trim())}`);
+            // Add cache-busting timestamp and no-cache headers to ensure fresh data
+            const timestamp = new Date().getTime();
+            const response = await fetch(`/api/scan?userId=${encodeURIComponent(userId.trim())}&_t=${timestamp}`, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                },
+            });
             
             // Check if response is ok before parsing JSON
             let data;

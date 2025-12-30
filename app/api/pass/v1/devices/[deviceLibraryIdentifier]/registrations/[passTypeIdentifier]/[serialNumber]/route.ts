@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
 
 /**
  * POST /api/pass/v1/devices/{deviceLibraryIdentifier}/registrations/{passTypeIdentifier}/{serialNumber}
@@ -52,7 +52,8 @@ export async function POST(
     console.log(`   Auth Token: ${authToken.substring(0, 8)}...`);
 
     // Store registration in database
-    const supabase = await createClient();
+    // Use service role client because Apple's servers don't have user authentication
+    const supabase = createServiceRoleClient();
     
     // First, ensure the table exists (we'll create it via migration, but handle gracefully)
     const { error: insertError } = await supabase
@@ -104,7 +105,8 @@ export async function DELETE(
     }
 
     // Remove registration from database
-    const supabase = await createClient();
+    // Use service role client because Apple's servers don't have user authentication
+    const supabase = createServiceRoleClient();
     const { error } = await supabase
       .from('pass_registrations')
       .delete()
