@@ -19,10 +19,23 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ passTypeIdentifier: string; serialNumber: string }> }
 ) {
+  // Log immediately when endpoint is called
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 📱 ============================================`);
+  console.log(`[${timestamp}] 📱 PASS UPDATE ENDPOINT CALLED BY APPLE`);
+  console.log(`[${timestamp}] 📱 ============================================`);
+  console.log(`[${timestamp}] 📱 URL: ${req.url}`);
+  console.log(`[${timestamp}] 📱 Method: ${req.method}`);
+  console.log(`[${timestamp}] 📱 Headers:`, {
+    'user-agent': req.headers.get('user-agent'),
+    'if-modified-since': req.headers.get('if-modified-since'),
+    'authorization': req.headers.get('authorization') ? 'Present' : 'Missing'
+  });
+  
   try {
     // Validate required environment variables first
     if (!process.env.APPLE_PASS_CERT_BASE64 || !process.env.APPLE_PASS_KEY_BASE64 || !process.env.APPLE_WWDR_CERT_BASE64) {
-      console.error('❌ Apple Pass certificates not configured');
+      console.error(`[${timestamp}] ❌ Apple Pass certificates not configured`);
       return new NextResponse(
         JSON.stringify({ error: 'Apple Pass certificates not configured' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -31,8 +44,8 @@ export async function GET(
 
     const { passTypeIdentifier, serialNumber } = await params;
     
-    console.log(`📱 Apple fetching pass update for serial: ${serialNumber}`);
-    console.log(`   Pass Type: ${passTypeIdentifier}`);
+    console.log(`[${timestamp}] 📱 Apple fetching pass update for serial: ${serialNumber}`);
+    console.log(`[${timestamp}] 📱    Pass Type: ${passTypeIdentifier}`);
     
     // Validate authentication token
     const authToken = req.headers.get('authorization')?.replace('ApplePass ', '');
@@ -285,7 +298,8 @@ export async function GET(
     // Generate pass buffer
     const buffer = pass.getAsBuffer();
     
-    console.log(`✅ Pass updated for serial number: ${serialNumber}, points: ${points}`);
+    console.log(`[${timestamp}] ✅ Pass updated for serial number: ${serialNumber}, points: ${points}`);
+    console.log(`[${timestamp}] 📱 Returning .pkpass file to Apple`);
     
     return new NextResponse(buffer as unknown as BodyInit, {
       headers: {
@@ -294,7 +308,10 @@ export async function GET(
       },
     });
   } catch (error: any) {
-    console.error('Error generating updated pass:', error);
+    const errorTimestamp = new Date().toISOString();
+    console.error(`[${errorTimestamp}] ❌ ERROR in pass update endpoint:`, error);
+    console.error(`[${errorTimestamp}] ❌ Error message:`, error?.message);
+    console.error(`[${errorTimestamp}] ❌ Error stack:`, error?.stack);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

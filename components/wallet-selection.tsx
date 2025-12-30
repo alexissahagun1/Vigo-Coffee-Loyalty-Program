@@ -45,32 +45,16 @@ export function WalletSelection({ userId, onClose }: WalletSelectionProps) {
   const handleAppleWallet = () => {
     setIsLoading('apple');
     setError(null);
-    window.location.href = '/api/wallet';
+    // Redirect to the Apple Wallet page which will generate and download the pass
+    window.location.href = '/wallet/apple';
   };
 
   const handleGoogleWallet = async () => {
     setIsLoading('google');
     setError(null);
 
-    try {
-      if (googleWalletUrl) {
-        window.location.href = googleWalletUrl;
-      } else {
-        const response = await fetch('/api/google-wallet/create');
-        if (!response.ok) {
-          throw new Error('Failed to create Google Wallet pass');
-        }
-        const data = await response.json();
-        if (data.addToWalletUrl) {
-          window.location.href = data.addToWalletUrl;
-        } else {
-          throw new Error('No Google Wallet URL received');
-        }
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to add to Google Wallet');
-      setIsLoading(null);
-    }
+    // Redirect to the Google Wallet page which will handle the flow
+    window.location.href = '/wallet/google';
   };
 
   return (

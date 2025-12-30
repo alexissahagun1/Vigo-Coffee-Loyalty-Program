@@ -109,8 +109,16 @@ export async function notifyPassUpdate(
             notification.expiry = Math.floor(Date.now() / 1000) + 3600; // 1 hour
             // For Wallet pass updates, we need a SILENT background notification
             // This tells Apple to fetch the updated pass without showing an alert to the user
+            // Setting contentAvailable = true automatically adds it to the aps payload
             notification.contentAvailable = true;
-            notification.payload = {};
+            // Don't set payload = {} as it overrides node-apn's automatic aps handling
+            // node-apn will automatically create { aps: { 'content-available': 1 } } when contentAvailable is true
+            
+            console.log(`🍎 [APPLE WALLET] Sending push notification to device ${reg.device_library_identifier.substring(0, 8)}...`);
+            console.log(`🍎 [APPLE WALLET]    Topic: ${passTypeIdentifier}`);
+            console.log(`🍎 [APPLE WALLET]    Content-Available: true`);
+            console.log(`🍎 [APPLE WALLET]    Push token length: ${pushToken.length}`);
+            console.log(`🍎 [APPLE WALLET]    Expiry: ${notification.expiry}`);
             
             return apnProvider.send(notification, pushToken);
         });

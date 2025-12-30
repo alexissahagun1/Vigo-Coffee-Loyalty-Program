@@ -100,26 +100,64 @@ export async function generateLoyaltyCardBackground(
     throw new Error('Failed to validate tiger images');
   }
 
-  // Resize tiger images - ensure RGBA channels are preserved
-  const resizedRedTiger = await sharp(redTigerBuffer)
-    .resize(Math.floor(tigerSize), Math.floor(tigerSize), { 
+  // Resize tiger images with supersampling for higher quality
+  // Render at 2x resolution first, then downscale for better quality
+  const SUPERSAMPLE_SCALE = 2; // Render at 2x for better quality
+  const supersampledSize = Math.floor(tigerSize * SUPERSAMPLE_SCALE);
+  
+  // First, resize to higher resolution with high-quality algorithm
+  const supersampledRedTiger = await sharp(redTigerBuffer)
+    .resize(supersampledSize, supersampledSize, { 
       fit: 'contain',
-      background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      kernel: 'lanczos3' // High-quality resampling algorithm
     })
-    .ensureAlpha() // Ensure alpha channel exists
-    .png()
+    .ensureAlpha()
+    .png({ 
+      quality: 100, // Maximum quality
+      compressionLevel: 6 // Balance between quality and file size
+    })
     .toBuffer();
 
-  const resizedWhiteTiger = await sharp(whiteTigerBuffer)
-    .resize(Math.floor(tigerSize), Math.floor(tigerSize), { 
+  const supersampledWhiteTiger = await sharp(whiteTigerBuffer)
+    .resize(supersampledSize, supersampledSize, { 
       fit: 'contain',
-      background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      kernel: 'lanczos3' // High-quality resampling algorithm
     })
-    .ensureAlpha() // Ensure alpha channel exists
-    .png()
+    .ensureAlpha()
+    .png({ 
+      quality: 100, // Maximum quality
+      compressionLevel: 6 // Balance between quality and file size
+    })
     .toBuffer();
 
-  console.log('✅ Tiger images resized successfully');
+  // Then downscale to final size using high-quality algorithm for sharp results
+  const resizedRedTiger = await sharp(supersampledRedTiger)
+    .resize(Math.floor(tigerSize), Math.floor(tigerSize), {
+      kernel: 'lanczos3', // High-quality downscaling
+      fit: 'contain'
+    })
+    .ensureAlpha()
+    .png({ 
+      quality: 100,
+      compressionLevel: 6
+    })
+    .toBuffer();
+
+  const resizedWhiteTiger = await sharp(supersampledWhiteTiger)
+    .resize(Math.floor(tigerSize), Math.floor(tigerSize), {
+      kernel: 'lanczos3', // High-quality downscaling
+      fit: 'contain'
+    })
+    .ensureAlpha()
+    .png({ 
+      quality: 100,
+      compressionLevel: 6
+    })
+    .toBuffer();
+
+  console.log('✅ Tiger images resized successfully with supersampling');
 
   // Prepare composites for tigers
   const tigerComposites: sharp.OverlayOptions[] = [];
@@ -169,7 +207,10 @@ export async function generateLoyaltyCardBackground(
 
   const topWithTigers = await sharp(topWithLogo)
     .composite(tigerComposites)
-    .png()
+    .png({ 
+      quality: 100, // Maximum quality
+      compressionLevel: 6 // Balance between quality and file size
+    })
     .toBuffer();
 
   console.log('✅ Tigers composited onto top section');
@@ -228,7 +269,10 @@ export async function generateLoyaltyCardBackground(
       left: 0,
       top: 0
     }])
-    .png()
+    .png({ 
+      quality: 100, // Maximum quality
+      compressionLevel: 6 // Balance between quality and file size
+    })
     .toBuffer();
 
   // Combine top and bottom sections into final image
@@ -253,7 +297,10 @@ export async function generateLoyaltyCardBackground(
         top: topSectionHeight
       }
     ])
-    .png()
+    .png({ 
+      quality: 100, // Maximum quality
+      compressionLevel: 6 // Balance between quality and file size
+    })
     .toBuffer();
 
   // Validate final image
