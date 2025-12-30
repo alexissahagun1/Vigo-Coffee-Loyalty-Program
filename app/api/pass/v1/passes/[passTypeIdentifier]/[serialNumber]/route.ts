@@ -44,6 +44,9 @@ export async function GET(
 
     // Get If-Modified-Since header to check if update is needed
     const ifModifiedSince = req.headers.get('if-modified-since');
+    if (ifModifiedSince) {
+      console.log(`   If-Modified-Since: ${ifModifiedSince}`);
+    }
     
     // Fetch current user data (serialNumber is the user ID)
     // Use service role client because Apple's servers don't have authentication cookies
@@ -66,15 +69,24 @@ export async function GET(
     }
     
     console.log(`✅ Profile found: ${profile.full_name}, Points: ${profile.points_balance}`);
+    console.log(`   Profile updated_at: ${profile.updated_at || 'NOT SET'}`);
 
     // Check if pass needs update (compare updated_at with If-Modified-Since)
     if (ifModifiedSince && profile.updated_at) {
       const lastModified = new Date(profile.updated_at);
       const ifModified = new Date(ifModifiedSince);
+      console.log(`   Comparing timestamps: lastModified=${lastModified.toISOString()}, ifModified=${ifModified.toISOString()}`);
       if (lastModified <= ifModified) {
         // No changes, return 304 Not Modified
+        console.log(`   ⏭️  Pass not modified, returning 304 Not Modified`);
         return new NextResponse(null, { status: 304 });
+      } else {
+        console.log(`   ✅ Pass has been modified, generating update`);
       }
+    } else if (ifModifiedSince && !profile.updated_at) {
+      console.log(`   ⚠️  If-Modified-Since header present but profile.updated_at is not set - generating pass anyway`);
+    } else {
+      console.log(`   📦 No If-Modified-Since header - generating pass`);
     }
 
     // Validate required environment variables

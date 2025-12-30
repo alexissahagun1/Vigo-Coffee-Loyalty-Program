@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient, createClient } from "@/lib/supabase/server";
+// Apple Wallet: Push notification system (APNs)
 import { notifyPassUpdate, notifyRewardEarned } from "@/lib/passkit/push-notifications";
-import { updateGoogleWalletPass } from "@/lib/google-wallet/pass-updater";
+// Google Wallet: Direct API update system
+import { updateGoogleWalletPass, hasGoogleWalletPass } from "@/lib/google-wallet/pass-updater";
 import { requireEmployeeAuth } from "@/lib/auth/employee-auth";
 
 const POINTS_PER_PURCHASE = 1; // 1 point per purchase
@@ -171,37 +173,110 @@ export async function POST(req: NextRequest) {
             console.error('⚠️  Transaction logging failed (non-critical):', transactionError?.message);
         }
 
-        // Send push notifications to registered devices (if APNs is configured)
-        // This enables instant pass updates instead of waiting for periodic checks
-        try {
-            if (rewardEarned && rewardType) {
-                // Send special notification for reward earned
-                await notifyRewardEarned(customerId, rewardType as 'coffee' | 'meal');
-            } else {
-                // Send regular update notification
-                await notifyPassUpdate(customerId);
+        // ============================================
+        // DETECT WHICH WALLET SYSTEM CUSTOMER USES
+        // ============================================
+        // Check both wallet systems in parallel for better performance
+        // Use fail-safe approach: if check fails, still try to update
+        const passTypeIdentifier = process.env.PASS_TYPE_ID || 'pass.com.vigocoffee.loyalty';
+        
+        // Helper function to add timeout to Google Wallet check
+        const checkGoogleWalletWithTimeout = async (userId: string): Promise<boolean> => {
+            try {
+                const timeoutPromise = new Promise<boolean>((resolve) => {
+                    setTimeout(() => resolve(false), 2000); // 2 second timeout
+                });
+                const checkPromise = hasGoogleWalletPass(userId);
+                return await Promise.race([checkPromise, timeoutPromise]);
+            } catch (error) {
+                console.error('🤖 [GOOGLE WALLET] Error checking pass existence:', error);
+                return false; // Fail-safe: return false, will still try to update
             }
-        } catch (notificationError: any) {
-            // Don't fail the purchase if notifications fail
-            console.error('⚠️  Push notification failed (non-critical):', notificationError?.message);
+        };
+
+        // Run both checks in parallel
+        const [appleCheckResult, googleCheckResult] = await Promise.allSettled([
+            // Check Apple Wallet: Look for registrations in pass_registrations table
+            supabase
+                .from('pass_registrations')
+                .select('serial_number')
+                .eq('serial_number', customerId)
+                .eq('pass_type_identifier', passTypeIdentifier)
+                .limit(1)
+                .then(result => (result.data?.length || 0) > 0),
+            // Check Google Wallet: Use API call with timeout
+            checkGoogleWalletWithTimeout(customerId)
+        ]);
+
+        // Extract results with fail-safe defaults
+        const hasAppleWallet = appleCheckResult.status === 'fulfilled' ? appleCheckResult.value : false;
+        const hasGoogleWallet = googleCheckResult.status === 'fulfilled' ? googleCheckResult.value : false;
+
+        // Log detection results
+        console.log(`🔍 Wallet detection for customer ${customerId}:`);
+        console.log(`   Apple Wallet: ${hasAppleWallet ? 'YES' : 'NO'}${appleCheckResult.status === 'rejected' ? ' (check failed, will try anyway)' : ''}`);
+        console.log(`   Google Wallet: ${hasGoogleWallet ? 'YES' : 'NO'}${googleCheckResult.status === 'rejected' ? ' (check failed, will try anyway)' : ''}`);
+
+        // ============================================
+        // APPLE WALLET UPDATE (Push Notifications)
+        // ============================================
+        // Apple Wallet uses APNs push notifications to notify devices that the pass has been updated.
+        // Apple's servers will then fetch the updated pass from our server.
+        // This is completely separate from Google Wallet updates.
+        if (hasAppleWallet) {
+            try {
+                console.log(`🍎 [APPLE WALLET] Starting Apple Wallet pass update for customer ${customerId}...`);
+                if (rewardEarned && rewardType) {
+                    // Send special notification for reward earned
+                    await notifyRewardEarned(customerId, rewardType as 'coffee' | 'meal');
+                    console.log(`🍎 [APPLE WALLET] Reward notification sent for ${rewardType}`);
+                } else {
+                    // Send regular update notification
+                    const notifiedCount = await notifyPassUpdate(customerId);
+                    console.log(`🍎 [APPLE WALLET] Update notification sent to ${notifiedCount} device(s)`);
+                }
+                console.log(`🍎 [APPLE WALLET] Apple Wallet update completed successfully`);
+            } catch (appleWalletError: any) {
+                // Don't fail the purchase if Apple Wallet notification fails
+                // The pass will still update when the user opens Wallet
+                console.error('🍎 [APPLE WALLET] Push notification failed (non-critical):', appleWalletError?.message);
+                console.error('   Stack:', appleWalletError?.stack);
+            }
+        } else {
+            console.log(`🍎 [APPLE WALLET] Skipping update - customer does not have Apple Wallet pass`);
         }
 
-        // Update Google Wallet pass (if user has one)
-        console.log(`📱 [PURCHASE] Attempting to update Google Wallet pass for customer ${customerId}...`);
-        console.log(`📱 [PURCHASE] Customer points after purchase: ${updatedProfile.points_balance}`);
-        console.log(`📱 [PURCHASE] Customer name: ${updatedProfile.full_name}`);
-        try {
-            const updateResult = await updateGoogleWalletPass(customerId, {
-                id: customerId,
-                full_name: updatedProfile.full_name,
-                points_balance: updatedProfile.points_balance,
-                redeemed_rewards: updatedProfile.redeemed_rewards,
-            });
-            console.log(`📱 [PURCHASE] Google Wallet update result: ${updateResult ? 'SUCCESS' : 'FAILED (pass may not exist)'}`);
-        } catch (googleWalletError: any) {
-            // Don't fail the purchase if Google Wallet update fails
-            console.error('⚠️  [PURCHASE] Google Wallet update failed (non-critical):', googleWalletError?.message);
-            console.error('   Stack:', googleWalletError?.stack);
+        // ============================================
+        // GOOGLE WALLET UPDATE (Direct API Call)
+        // ============================================
+        // Google Wallet uses direct API calls to update passes immediately.
+        // This is completely separate from Apple Wallet push notifications.
+        // Google Wallet updates happen synchronously via their REST API.
+        if (hasGoogleWallet) {
+            try {
+                console.log(`🤖 [GOOGLE WALLET] Starting Google Wallet pass update for customer ${customerId}...`);
+                console.log(`🤖 [GOOGLE WALLET] Customer points: ${updatedProfile.points_balance}`);
+                console.log(`🤖 [GOOGLE WALLET] Customer name: ${updatedProfile.full_name}`);
+                
+                const updateResult = await updateGoogleWalletPass(customerId, {
+                    id: customerId,
+                    full_name: updatedProfile.full_name,
+                    points_balance: updatedProfile.points_balance,
+                    redeemed_rewards: updatedProfile.redeemed_rewards,
+                });
+                
+                if (updateResult) {
+                    console.log(`🤖 [GOOGLE WALLET] Google Wallet pass updated successfully`);
+                } else {
+                    console.log(`🤖 [GOOGLE WALLET] Google Wallet pass update failed`);
+                }
+            } catch (googleWalletError: any) {
+                // Don't fail the purchase if Google Wallet update fails
+                console.error('🤖 [GOOGLE WALLET] Google Wallet update failed (non-critical):', googleWalletError?.message);
+                console.error('   Stack:', googleWalletError?.stack);
+            }
+        } else {
+            console.log(`🤖 [GOOGLE WALLET] Skipping update - customer does not have Google Wallet pass`);
         }
 
         // Build success message
