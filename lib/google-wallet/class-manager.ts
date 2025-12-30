@@ -339,10 +339,6 @@ export async function ensureLoyaltyClassExists(baseUrl: string): Promise<string>
  * Updates the loyalty class (e.g., when design changes)
  * @param baseUrl - Base URL for image assets
  */
-/**
- * Updates the loyalty class (e.g., when design changes)
- * @param baseUrl - Base URL for image assets
- */
 export async function updateLoyaltyClass(baseUrl: string): Promise<void> {
   if (!isGoogleWalletConfigured()) {
     throw new Error('Google Wallet is not configured');

@@ -297,36 +297,7 @@ export async function GET(req: NextRequest) {
             if (insertError.response?.data) {
               console.error(`   API Error Details:`, JSON.stringify(insertError.response.data, null, 2));
             }
-            throw insertError;
-          }
-        } else if (error.code === 404) {
-          // 404 might mean class not approved or object doesn't exist
-          // Check if it's a class approval issue
-          if (error.message?.includes('not approved') || error.message?.includes('classNotFound')) {
-            console.error(`❌ Google Wallet Class Not Approved:`);
-            console.error(`   Class ID: ${classIdToUse}`);
-            console.error(`   Error: ${error.message}`);
-            console.error(`   The class exists but is not approved yet.`);
-            console.error(`   Please check the Google Wallet Console and ensure the class is APPROVED.`);
-            return new NextResponse(
-              JSON.stringify({ 
-                error: 'Google Wallet class not approved',
-                message: 'The loyalty class exists but is not yet approved by Google. Please check the Google Wallet Console and wait for approval, or contact Google Wallet support.',
-                classId: classIdToUse,
-                details: error.message
-              }),
-              { status: 400, headers: { 'Content-Type': 'application/json' } }
-            );
-          }
-          // Otherwise, try to create the object (might be a new object)
-          console.log(`📝 Creating new Google Wallet pass with object ID: ${objectId}`);
-          try {
-            await wallet.loyaltyobject.insert({
-              requestBody: loyaltyObject,
-            });
-            console.log(`✅ Google Wallet pass created for user ${user.id}`);
-          } catch (insertError: any) {
-            // If insert also fails with class not approved, return helpful error
+            // Check if insert error is about class not approved
             if (insertError.code === 404 && (insertError.message?.includes('not approved') || insertError.message?.includes('classNotFound'))) {
               return new NextResponse(
                 JSON.stringify({ 

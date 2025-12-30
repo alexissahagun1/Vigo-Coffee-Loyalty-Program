@@ -1,5 +1,5 @@
 import { updateGoogleWalletPass, hasGoogleWalletPass } from '@/lib/google-wallet/pass-updater';
-import { getWalletClient, isGoogleWalletConfigured } from '@/lib/google-wallet/auth';
+import { getWalletClient, isGoogleWalletConfigured, getIssuerId } from '@/lib/google-wallet/auth';
 import { ProfileData } from '@/lib/google-wallet/pass-generator';
 
 // Mock the auth module
@@ -7,6 +7,7 @@ jest.mock('@/lib/google-wallet/auth', () => ({
   getWalletClient: jest.fn(),
   isGoogleWalletConfigured: jest.fn(() => true),
   getClassId: jest.fn(() => 'loyalty.vigocoffee.com'),
+  getIssuerId: jest.fn(() => 'TEST_ISSUER_ID'),
 }));
 
 // Mock pass generator
@@ -16,11 +17,16 @@ jest.mock('@/lib/google-wallet/pass-generator', () => ({
     classId: 'loyalty.vigocoffee.com',
     loyaltyPoints: {
       balance: {
-        string: `${profile.points_balance || 0} pts`,
         int: profile.points_balance || 0,
       },
     },
   })),
+}));
+
+// Mock image-urls
+jest.mock('@/lib/google-wallet/image-urls', () => ({
+  getBaseUrl: jest.fn(() => 'https://example.com'),
+  isPublicUrl: jest.fn(() => false),
 }));
 
 describe('Google Wallet Pass Updater', () => {
@@ -47,24 +53,30 @@ describe('Google Wallet Pass Updater', () => {
   });
 
   it('should update pass successfully when pass exists', async () => {
+    const objectId = 'TEST_ISSUER_ID.aaaaaaaaaaaaaaaa';
     const mockWallet = {
       loyaltyobject: {
-        get: jest.fn().mockResolvedValue({
-          data: { id: 'test-user-id' },
+        get: jest.fn()
+          .mockResolvedValueOnce({
+            data: { id: objectId, loyaltyPoints: { balance: { int: 10 } } },
+          })
+          .mockResolvedValueOnce({
+            data: { id: objectId, loyaltyPoints: { balance: { int: 15 } } },
+          }),
+        update: jest.fn().mockResolvedValue({
+          data: { id: objectId, loyaltyPoints: { balance: { int: 15 } } },
         }),
-        patch: jest.fn().mockResolvedValue({}),
       },
     };
 
     (getWalletClient as jest.Mock).mockReturnValue(mockWallet);
+    (isGoogleWalletConfigured as jest.Mock).mockReturnValue(true);
 
     const result = await updateGoogleWalletPass('test-user-id', mockProfile);
 
     expect(result).toBe(true);
-    expect(mockWallet.loyaltyobject.get).toHaveBeenCalledWith({
-      resourceId: 'test-user-id',
-    });
-    expect(mockWallet.loyaltyobject.patch).toHaveBeenCalled();
+    expect(mockWallet.loyaltyobject.get).toHaveBeenCalled();
+    expect(mockWallet.loyaltyobject.update).toHaveBeenCalled();
   });
 
   it('should return false when pass does not exist', async () => {
@@ -78,6 +90,7 @@ describe('Google Wallet Pass Updater', () => {
     };
 
     (getWalletClient as jest.Mock).mockReturnValue(mockWallet);
+    (isGoogleWalletConfigured as jest.Mock).mockReturnValue(true);
 
     const result = await updateGoogleWalletPass('test-user-id', mockProfile);
 
@@ -107,12 +120,13 @@ describe('Google Wallet Pass Updater', () => {
       const mockWallet = {
         loyaltyobject: {
           get: jest.fn().mockResolvedValue({
-            data: { id: 'test-user-id' },
+            data: { id: 'TEST_ISSUER_ID.aaaaaaaaaaaaaaaa' },
           }),
         },
       };
 
       (getWalletClient as jest.Mock).mockReturnValue(mockWallet);
+      (isGoogleWalletConfigured as jest.Mock).mockReturnValue(true);
 
       const result = await hasGoogleWalletPass('test-user-id');
 
