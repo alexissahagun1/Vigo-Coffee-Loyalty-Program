@@ -33,7 +33,7 @@ Replace this ID in all commands with your actual user ID if needed.
 ### Basic Command
 
 ```bash
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
 ```
 
 ### Expected Response
@@ -60,7 +60,7 @@ curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-89
 ### With Pretty Print (if you have `jq` installed)
 
 ```bash
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c" | jq
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c" | jq
 ```
 
 ---
@@ -74,7 +74,7 @@ curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-89
 ### Basic Command
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/purchase \
+curl -X POST https://vigo-loyalty.vercel.app/api/purchase \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c"}'
 ```
@@ -82,7 +82,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/purchase \
 ### Alternative (using userId field)
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/purchase \
+curl -X POST https://vigo-loyalty.vercel.app/api/purchase \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c"}'
 ```
@@ -118,7 +118,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/purchase \
 #### Redeem Coffee at 10 points
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"coffee","points":10}'
 ```
@@ -126,7 +126,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
 #### Redeem Coffee at 20 points
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"coffee","points":20}'
 ```
@@ -134,7 +134,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
 #### Redeem Coffee at 30 points
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"coffee","points":30}'
 ```
@@ -144,7 +144,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
 #### Redeem Meal at 25 points
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"meal","points":25}'
 ```
@@ -152,7 +152,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
 #### Redeem Meal at 50 points
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"meal","points":50}'
 ```
@@ -160,7 +160,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
 #### Redeem Meal at 75 points
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"meal","points":75}'
 ```
@@ -196,7 +196,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
 #### Set to 0 points
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":0}'
 ```
@@ -204,7 +204,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 #### Set to 10 points (coffee reward milestone)
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":10}'
 ```
@@ -212,7 +212,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 #### Set to 25 points (meal reward milestone)
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":25}'
 ```
@@ -220,7 +220,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 #### Set to 50 points (multiple rewards available)
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":50}'
 ```
@@ -230,7 +230,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 #### Add 1 point
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":1}'
 ```
@@ -238,7 +238,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 #### Add 5 points
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":5}'
 ```
@@ -246,7 +246,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 #### Subtract 1 point
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":-1}'
 ```
@@ -254,7 +254,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 #### Subtract 10 points
 
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":-10}'
 ```
@@ -281,60 +281,60 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 
 ```bash
 # 1. Set user to 9 points
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":9}'
 
 # 2. Check available rewards (should show none yet)
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
 
 # 3. Add a purchase (should reach 10 points, earn coffee reward)
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/purchase \
+curl -X POST https://vigo-loyalty.vercel.app/api/purchase \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c"}'
 
 # 4. Check available rewards (should show coffee at 10)
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
 
 # 5. Redeem the coffee reward
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"coffee","points":10}'
 
 # 6. Check again (coffee at 10 should be gone, points still 10)
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
 ```
 
 ### Test Flow 2: Multiple Rewards Scenario
 
 ```bash
 # 1. Set user to 50 points (earns: coffee at 10,20,30,40,50 and meal at 25,50)
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":50}'
 
 # 2. Check all available rewards
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
 
 # 3. Redeem coffee at 10
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"coffee","points":10}'
 
 # 4. Redeem meal at 25
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"meal","points":25}'
 
 # 5. Check remaining rewards (should show coffee at 20,30,40,50 and meal at 50)
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
 ```
 
 ### Test Flow 3: Pass Update Testing
 
 ```bash
 # 1. Set user to 10 points (should show coffee reward in pass)
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":10}'
 
@@ -342,7 +342,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 # Pass should update automatically showing "You earned a FREE COFFEE!"
 
 # 3. Redeem the coffee reward
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"2663229d-8983-47ae-93d7-59df88c7b55c","type":"coffee","points":10}'
 
@@ -350,7 +350,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
 # Pass should update showing "No reward yet! Keep shopping..." (reward was redeemed)
 
 # 5. Add more points to reach 20
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":20}'
 
@@ -364,7 +364,7 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 
 ### Base URL
 ```
-https://vigo-coffee-loyalty-program.vercel.app
+https://vigo-loyalty.vercel.app
 ```
 
 ### Test User ID
@@ -376,33 +376,33 @@ https://vigo-coffee-loyalty-program.vercel.app
 
 #### Check Customer Status
 ```bash
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=USER_ID"
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=USER_ID"
 ```
 
 #### Add Purchase
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/purchase \
+curl -X POST https://vigo-loyalty.vercel.app/api/purchase \
   -H "Content-Type: application/json" \
   -d '{"customerId":"USER_ID"}'
 ```
 
 #### Redeem Coffee
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"USER_ID","type":"coffee","points":10}'
 ```
 
 #### Redeem Meal
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/redeem \
+curl -X POST https://vigo-loyalty.vercel.app/api/redeem \
   -H "Content-Type: application/json" \
   -d '{"customerId":"USER_ID","type":"meal","points":25}'
 ```
 
 #### Set Points
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"USER_ID","points":25}'
 ```
@@ -415,27 +415,27 @@ curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
 
 If you have `jq` installed:
 ```bash
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c" | jq
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c" | jq
 ```
 
 ### Follow Redirects
 
 If you get redirects, use `-L` flag:
 ```bash
-curl -L "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
+curl -L "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
 ```
 
 ### Verbose Output
 
 For debugging, use `-v` flag:
 ```bash
-curl -v "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
+curl -v "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
 ```
 
 ### Save Response to File
 
 ```bash
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c" > response.json
+curl "https://vigo-loyalty.vercel.app/api/scan?userId=2663229d-8983-47ae-93d7-59df88c7b55c" > response.json
 ```
 
 ---
@@ -497,6 +497,6 @@ curl "https://vigo-coffee-loyalty-program.vercel.app/api/scan?userId=2663229d-89
 ---
 
 **Last Updated:** December 24, 2025  
-**Production URL:** `https://vigo-coffee-loyalty-program.vercel.app`
+**Production URL:** `https://vigo-loyalty.vercel.app`
 
 

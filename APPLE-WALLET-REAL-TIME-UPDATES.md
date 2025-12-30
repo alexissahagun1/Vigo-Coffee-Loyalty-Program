@@ -97,7 +97,7 @@ APNS_PRODUCTION=true  # true for production, false for sandbox
 PASS_AUTH_SECRET=your-random-secret-key  # Generate a secure random string
 
 # Application URL
-NEXT_PUBLIC_APP_URL=https://vigo-coffee-loyalty-program.vercel.app
+NEXT_PUBLIC_APP_URL=https://vigo-loyalty.vercel.app
 ```
 
 ### How to Get Each Value
@@ -181,17 +181,17 @@ Test endpoint to manually update points and trigger push notifications. Useful f
 **Examples**:
 ```bash
 # Add 1 point
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":1}'
 
 # Subtract 1 point
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":-1}'
 
 # Add 5 points
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":5}'
 ```
@@ -271,7 +271,7 @@ Diagnostic endpoint to check registration status.
 ```json
 {
   "success": true,
-  "webServiceURL": "https://vigo-coffee-loyalty-program.vercel.app/api/pass",
+  "webServiceURL": "https://vigo-loyalty.vercel.app/api/pass",
   "totalRegistrations": 1,
   "userRegistrations": 1,
   "registrations": [...]
@@ -347,21 +347,21 @@ CREATE TABLE pass_registrations (
 
 ### Test Pass Update
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"YOUR-USER-ID","points":1}'
 ```
 
 ### Test Purchase
 ```bash
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/purchase \
+curl -X POST https://vigo-loyalty.vercel.app/api/purchase \
   -H "Content-Type: application/json" \
   -d '{"customerId":"YOUR-USER-ID"}'
 ```
 
 ### Check Registration Status
 ```bash
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/test-registration?userId=YOUR-USER-ID"
+curl "https://vigo-loyalty.vercel.app/api/test-registration?userId=YOUR-USER-ID"
 ```
 
 ### Manual Database Update (Not Recommended)
@@ -476,22 +476,22 @@ If you update points directly in the database:
 Current test user: `2663229d-8983-47ae-93d7-59df88c7b55c`
 
 ### Production URL
-`https://vigo-coffee-loyalty-program.vercel.app`
+`https://vigo-loyalty.vercel.app`
 
 ### Key Commands
 ```bash
 # Add 1 point
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":1}'
 
 # Subtract 1 point
-curl -X POST https://vigo-coffee-loyalty-program.vercel.app/api/test-update \
+curl -X POST https://vigo-loyalty.vercel.app/api/test-update \
   -H "Content-Type: application/json" \
   -d '{"userId":"2663229d-8983-47ae-93d7-59df88c7b55c","points":-1}'
 
 # Check registrations
-curl "https://vigo-coffee-loyalty-program.vercel.app/api/test-registration?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
+curl "https://vigo-loyalty.vercel.app/api/test-registration?userId=2663229d-8983-47ae-93d7-59df88c7b55c"
 ```
 
 ---
