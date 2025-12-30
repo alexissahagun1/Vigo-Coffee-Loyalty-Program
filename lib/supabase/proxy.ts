@@ -176,7 +176,7 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/api/admin") &&
     !request.nextUrl.pathname.startsWith("/api/auth/employee/login") &&
     !request.nextUrl.pathname.startsWith("/api/auth/employee/check") &&
-    !request.nextUrl.pathname.startsWith("/api/google-wallet/background")
+    !request.nextUrl.pathname.startsWith("/api/google-wallet/background") // Public endpoint for Google Wallet images
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
