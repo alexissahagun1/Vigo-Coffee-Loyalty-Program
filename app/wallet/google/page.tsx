@@ -8,7 +8,6 @@ import { Loader2, ExternalLink } from "lucide-react";
 
 export default function GoogleWalletPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [googleWalletUrl, setGoogleWalletUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
