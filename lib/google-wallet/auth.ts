@@ -126,3 +126,26 @@ export function getClassId(): string {
   return `${issuerId}.${classSuffix}`;
 }
 
+/**
+ * Gets the service account credentials from environment variables
+ * @returns Service account credentials object with client_email and private_key
+ */
+export function getServiceAccountCredentials(): { client_email: string; private_key: string } {
+  if (!isGoogleWalletConfigured()) {
+    throw new Error('Google Wallet is not configured');
+  }
+
+  const serviceAccountKeyBase64 = process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_KEY_BASE64;
+  if (!serviceAccountKeyBase64) {
+    throw new Error('GOOGLE_WALLET_SERVICE_ACCOUNT_KEY_BASE64 is not set');
+  }
+
+  const serviceAccountKeyJson = Buffer.from(serviceAccountKeyBase64, 'base64').toString('utf-8');
+  const serviceAccountKey = JSON.parse(serviceAccountKeyJson);
+
+  return {
+    client_email: serviceAccountKey.client_email || process.env.GOOGLE_WALLET_SERVICE_ACCOUNT_EMAIL!,
+    private_key: serviceAccountKey.private_key,
+  };
+}
+

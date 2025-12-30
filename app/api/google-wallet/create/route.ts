@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getWalletClient, isGoogleWalletConfigured } from '@/lib/google-wallet/auth';
+import { getWalletClient, isGoogleWalletConfigured, getServiceAccountCredentials } from '@/lib/google-wallet/auth';
 import { ensureLoyaltyClassExists } from '@/lib/google-wallet/class-manager';
-import { generateGoogleWalletPass, ProfileData } from '@/lib/google-wallet/pass-generator';
+import { generateGoogleWalletPass, generateAddToWalletJWT, ProfileData } from '@/lib/google-wallet/pass-generator';
 import { generateLoyaltyCardBackground } from '@/lib/loyalty-card/generate-background';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -382,16 +382,31 @@ export async function GET(req: NextRequest) {
       }
 
       // 9. Generate "Add to Google Wallet" link
-      // Google Wallet uses a special URL format with the object ID
-      // Format: https://pay.google.com/gp/v/save/{objectId}
-      // Note: The object must exist AND class must be approved for this URL to work
-      const addToWalletUrl = `https://pay.google.com/gp/v/save/${objectId}`;
+      // Google Wallet requires a signed JWT token, not just the raw object ID
+      // Format: https://pay.google.com/gp/v/save/{signedJWT}
+      // The JWT must contain the object ID in the payload
+      let addToWalletUrl: string;
+      try {
+        const credentials = getServiceAccountCredentials();
+        const jwtToken = generateAddToWalletJWT(
+          objectId,
+          credentials.client_email,
+          credentials.private_key
+        );
+        addToWalletUrl = `https://pay.google.com/gp/v/save/${jwtToken}`;
+        console.log(`✅ Generated signed JWT for Add to Wallet link`);
+      } catch (jwtError: any) {
+        console.error(`❌ Failed to generate JWT: ${jwtError.message}`);
+        // Fallback to object ID (won't work, but at least we return something)
+        addToWalletUrl = `https://pay.google.com/gp/v/save/${objectId}`;
+        console.warn(`⚠️  Using raw object ID (will not work - JWT generation failed)`);
+      }
 
       console.log(`✅ Google Wallet pass ready!`);
       console.log(`   Object ID: ${objectId}`);
       console.log(`   Object exists: ${objectExists ? 'Yes' : 'Unknown (may need class approval)'}`);
       console.log(`   Class ID: ${classIdToUse}`);
-      console.log(`   Add to Wallet URL: ${addToWalletUrl}`);
+      console.log(`   Add to Wallet URL: ${addToWalletUrl.substring(0, 100)}... (truncated for logging)`);
 
       return NextResponse.json({
         success: true,

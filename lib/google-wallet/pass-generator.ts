@@ -135,25 +135,45 @@ export async function generateGoogleWalletPass(
 }
 
 /**
- * Generates a JWT token for "Add to Google Wallet" link
- * @param loyaltyObject - The loyalty object to encode
- * @param serviceAccountEmail - Service account email
- * @param serviceAccountKey - Service account private key
- * @returns JWT token string
+ * Generates a signed JWT token for "Add to Google Wallet" link
+ * Google Wallet requires a signed JWT containing the object ID, not just the raw object ID
+ * @param objectId - The loyalty object ID (e.g., '3388000000023063726.422fb5cb7ba6ff31')
+ * @param serviceAccountEmail - Service account email (issuer)
+ * @param serviceAccountPrivateKey - Service account private key for signing
+ * @returns Signed JWT token string
  */
-export async function generateAddToWalletJWT(
-  loyaltyObject: walletobjects_v1.Schema$LoyaltyObject,
+export function generateAddToWalletJWT(
+  objectId: string,
   serviceAccountEmail: string,
-  serviceAccountKey: string
-): Promise<string> {
-  // Import jwt library (we'll use googleapis built-in or crypto)
-  // For now, we'll use a simple approach - Google Wallet API can also create objects directly
-  // The JWT approach is for web-based "Add to Wallet" buttons
+  serviceAccountPrivateKey: string
+): string {
+  const jwt = require('jsonwebtoken');
+
+  // Define the JWT claims (payload)
+  // This is the structure Google Wallet expects for "Save to Wallet" links
+  const claims = {
+    iss: serviceAccountEmail, // Issuer (service account email)
+    aud: 'google', // Audience (must be 'google')
+    typ: 'savetowallet', // Type (must be 'savetowallet')
+    payload: {
+      loyaltyObjects: [
+        {
+          id: objectId, // The object ID we created
+        },
+      ],
+    },
+    iat: Math.floor(Date.now() / 1000), // Issued at (current timestamp)
+    exp: Math.floor(Date.now() / 1000) + 3600, // Expires in 1 hour
+  };
+
+  // Sign the JWT using RS256 algorithm with the private key
+  // The private key needs to have newlines preserved
+  const privateKey = serviceAccountPrivateKey.replace(/\\n/g, '\n');
   
-  // Note: Google Wallet API supports direct object creation via API
-  // JWT is mainly for web integration. We'll use direct API calls instead.
-  // This function is a placeholder - actual implementation would use google-auth-library
-  
-  throw new Error('JWT generation not implemented - using direct API calls instead');
+  const token = jwt.sign(claims, privateKey, {
+    algorithm: 'RS256',
+  });
+
+  return token;
 }
 
