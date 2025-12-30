@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { notifyPassUpdate } from "@/lib/passkit/push-notifications";
+import { updateGoogleWalletPass } from "@/lib/google-wallet/pass-updater";
 
 /**
  * Test endpoint to immediately update points and trigger push notification
@@ -126,11 +127,24 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ Points updated: ${userId} now has ${newPoints} points`);
 
-    // Immediately trigger push notification
+    // Immediately trigger push notification for Apple Wallet
     const notifiedCount = await notifyPassUpdate(userId);
     
     console.log(`📱 Push notification triggered for ${userId}`);
     console.log(`   Devices notified: ${notifiedCount}`);
+
+    // Update Google Wallet pass
+    try {
+      const googleWalletUpdated = await updateGoogleWalletPass(userId, {
+        id: userId,
+        full_name: updatedProfile.full_name,
+        points_balance: updatedProfile.points_balance,
+        redeemed_rewards: updatedProfile.redeemed_rewards,
+      });
+      console.log(`📱 Google Wallet update: ${googleWalletUpdated ? 'Success' : 'Pass not found or update failed'}`);
+    } catch (googleWalletError: any) {
+      console.error('⚠️  Google Wallet update failed (non-critical):', googleWalletError?.message);
+    }
 
     return NextResponse.json({
       success: true,

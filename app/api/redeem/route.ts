@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient, createClient } from "@/lib/supabase/server";
 // Import the function that sends push notifications to update the Apple Wallet pass
 import { notifyPassUpdate } from "@/lib/passkit/push-notifications";
+import { updateGoogleWalletPass } from "@/lib/google-wallet/pass-updater";
 import { requireEmployeeAuth } from "@/lib/auth/employee-auth";
 
 // Export a POST handler function that Next.js will call when /api/redeem is accessed
@@ -205,6 +206,19 @@ export async function POST(req: NextRequest) {
             // If notification fails, log it but don't fail the redemption
             // The pass will still update eventually when the customer opens Wallet
             console.error("⚠️  Push notification failed (non-critical):", notificationError?.message);
+        }
+
+        // Update Google Wallet pass (if user has one)
+        try {
+            await updateGoogleWalletPass(customerId, {
+                id: customerId,
+                full_name: updatedProfile.full_name,
+                points_balance: updatedProfile.points_balance,
+                redeemed_rewards: updatedProfile.redeemed_rewards,
+            });
+        } catch (googleWalletError: any) {
+            // Don't fail the redemption if Google Wallet update fails
+            console.error("⚠️  Google Wallet update failed (non-critical):", googleWalletError?.message);
         }
 
         // Return a successful response with the updated customer information

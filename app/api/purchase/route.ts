@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient, createClient } from "@/lib/supabase/server";
 import { notifyPassUpdate, notifyRewardEarned } from "@/lib/passkit/push-notifications";
+import { updateGoogleWalletPass } from "@/lib/google-wallet/pass-updater";
 import { requireEmployeeAuth } from "@/lib/auth/employee-auth";
 
 const POINTS_PER_PURCHASE = 1; // 1 point per purchase
@@ -8,16 +9,20 @@ const POINTS_FOR_COFFEE = 10; // 10 points for a coffee
 const POINTS_FOR_MEAL = 25; // 25 points for a meal
 
 export async function POST(req: NextRequest) {
+    console.log(`🛒 [PURCHASE] Purchase endpoint called`);
     try {
         // SECURITY: Require employee authentication
         const authError = await requireEmployeeAuth();
         if (authError) {
+            console.log(`🛒 [PURCHASE] Authentication failed`);
             return authError;
         }
+        console.log(`🛒 [PURCHASE] Authentication passed`);
 
         // Get customer ID from request body
         const body = await req.json();
         const customerId = body.customerId || body.userId;
+        console.log(`🛒 [PURCHASE] Processing purchase for customer: ${customerId}`);
 
         // Validate that we have a customerID
         if (!customerId || typeof customerId !== 'string') {
@@ -178,6 +183,24 @@ export async function POST(req: NextRequest) {
         } catch (notificationError: any) {
             // Don't fail the purchase if notifications fail
             console.error('⚠️  Push notification failed (non-critical):', notificationError?.message);
+        }
+
+        // Update Google Wallet pass (if user has one)
+        console.log(`📱 [PURCHASE] Attempting to update Google Wallet pass for customer ${customerId}...`);
+        console.log(`📱 [PURCHASE] Customer points after purchase: ${updatedProfile.points_balance}`);
+        console.log(`📱 [PURCHASE] Customer name: ${updatedProfile.full_name}`);
+        try {
+            const updateResult = await updateGoogleWalletPass(customerId, {
+                id: customerId,
+                full_name: updatedProfile.full_name,
+                points_balance: updatedProfile.points_balance,
+                redeemed_rewards: updatedProfile.redeemed_rewards,
+            });
+            console.log(`📱 [PURCHASE] Google Wallet update result: ${updateResult ? 'SUCCESS' : 'FAILED (pass may not exist)'}`);
+        } catch (googleWalletError: any) {
+            // Don't fail the purchase if Google Wallet update fails
+            console.error('⚠️  [PURCHASE] Google Wallet update failed (non-critical):', googleWalletError?.message);
+            console.error('   Stack:', googleWalletError?.stack);
         }
 
         // Build success message

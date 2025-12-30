@@ -4,6 +4,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
 
 export async function updateSession(request: NextRequest) {
+  // DEBUG: Log all requests to background endpoint
+  if (request.nextUrl.pathname.startsWith("/api/google-wallet/background")) {
+    console.log('🔍 [MIDDLEWARE] Background endpoint request detected:', {
+      pathname: request.nextUrl.pathname,
+      fullUrl: request.url,
+      method: request.method,
+      timestamp: new Date().toISOString()
+    });
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -160,6 +170,13 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // Early return for Google Wallet background images - must be public
+  // This bypasses all auth checks
+  if (request.nextUrl.pathname.startsWith("/api/google-wallet/background")) {
+    console.log('✅ [MIDDLEWARE] Allowing background endpoint - early return');
+    return NextResponse.next({ request });
+  }
+
   if (
     request.nextUrl.pathname !== "/" &&
     !userId &&
@@ -177,6 +194,12 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/api/auth/employee/login") &&
     !request.nextUrl.pathname.startsWith("/api/auth/employee/check")
   ) {
+    // DEBUG: Log redirects for debugging
+    console.log('🔍 [MIDDLEWARE] Redirecting to login:', {
+      pathname: request.nextUrl.pathname,
+      userId: userId,
+      fullUrl: request.url
+    });
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
     url.pathname = "/login";

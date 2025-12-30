@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { WalletSelection } from "@/components/wallet-selection";
 
 export function JoinLoyaltyForm() {
   const [fullName, setFullName] = useState("");
@@ -15,6 +16,7 @@ export function JoinLoyaltyForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +57,7 @@ export function JoinLoyaltyForm() {
 
       // User ID is automatically assigned by Supabase auth
       const userId = authResult.data.user.id;
+      setUserId(userId);
 
       // Prepare birthday data (convert to ISO format if provided)
       let birthdayDate = null;
@@ -121,14 +124,8 @@ export function JoinLoyaltyForm() {
       localStorage.setItem('signupCount', (signupCount + 1).toString());
       localStorage.setItem('lastSignup', now.toString());
 
-      // Show success and redirect to wallet download
+      // Show success and show wallet selection
       setSuccess(true);
-      
-      // Wait longer to ensure profile is fully committed and accessible
-      // Increased from 1500ms to 2000ms to account for email/phone field writes
-      setTimeout(() => {
-        window.location.href = '/api/wallet';
-      }, 2000);
 
     } catch (error: any) {
       setError(error.message || 'Something went wrong. Please try again.');
@@ -136,17 +133,9 @@ export function JoinLoyaltyForm() {
     }
   };
 
-  if (success) {
+  if (success && userId) {
     return (
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center space-y-4">
-            <div className="text-6xl">🎉</div>
-            <h2 className="text-2xl font-bold text-green-600">Success!</h2>
-            <p className="text-gray-600">Creating your loyalty card...</p>
-          </div>
-        </CardContent>
-      </Card>
+      <WalletSelection userId={userId} />
     );
   }
 
