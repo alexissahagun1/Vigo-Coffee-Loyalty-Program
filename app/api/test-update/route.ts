@@ -9,8 +9,19 @@ import { updateGoogleWalletPass, hasGoogleWalletPass } from "@/lib/google-wallet
  * Test endpoint to immediately update points and trigger push notification
  * POST /api/test-update
  * Body: { userId: string, points: number }
+ * 
+ * SECURITY: This endpoint is disabled in production for security reasons.
+ * Only available in development/testing environments.
  */
 export async function POST(req: NextRequest) {
+  // Disable in production - this is a test endpoint only
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Not found' },
+      { status: 404 }
+    );
+  }
+
   try {
     const body = await req.json();
     const userId = body.userId;

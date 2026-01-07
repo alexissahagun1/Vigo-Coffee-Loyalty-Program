@@ -7,8 +7,19 @@ import { isGoogleWalletConfigured } from '@/lib/google-wallet/auth';
  * GET /api/google-wallet/debug-classes
  * 
  * This helps identify the correct class ID if one was created in the Google Wallet Console
+ * 
+ * SECURITY: This endpoint is disabled in production for security reasons.
+ * Only available in development/testing environments.
  */
 export async function GET(req: NextRequest) {
+  // Disable in production - this is a debug endpoint only
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Not found' },
+      { status: 404 }
+    );
+  }
+
   try {
     if (!isGoogleWalletConfigured()) {
       return NextResponse.json(
@@ -38,4 +49,5 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
 

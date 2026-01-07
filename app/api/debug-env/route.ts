@@ -1,6 +1,20 @@
 import { NextResponse } from 'next/server';
 
+/**
+ * Debug endpoint to check environment variable configuration
+ * 
+ * SECURITY: This endpoint is disabled in production for security reasons.
+ * Only available in development/testing environments.
+ */
 export async function GET() {
+  // Disable in production - this is a debug endpoint only
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Not found' },
+      { status: 404 }
+    );
+  }
+
   return NextResponse.json({
     hasCert: !!process.env.APPLE_PASS_CERT_BASE64,
     certLength: process.env.APPLE_PASS_CERT_BASE64?.length || 0,

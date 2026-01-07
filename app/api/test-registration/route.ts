@@ -4,8 +4,19 @@ import { createClient } from "@/lib/supabase/server";
 /**
  * Test endpoint to check registration status and verify endpoint accessibility
  * GET /api/test-registration?userId=xxx
+ * 
+ * SECURITY: This endpoint is disabled in production for security reasons.
+ * Only available in development/testing environments.
  */
 export async function GET(req: NextRequest) {
+  // Disable in production - this is a test endpoint only
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Not found' },
+      { status: 404 }
+    );
+  }
+
   try {
     const searchParams = req.nextUrl.searchParams;
     const userId = searchParams.get('userId');
