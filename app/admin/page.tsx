@@ -408,11 +408,11 @@ export default function AdminPage() {
                 </div>
                 </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
+            <div className="space-y-6">
+              <div className="lg:max-w-md">
                 <CustomerForm onCustomerCreated={handleCustomerCreated} />
               </div>
-              <div className="lg:col-span-2">
+              <div className="w-full">
                 {customersLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />

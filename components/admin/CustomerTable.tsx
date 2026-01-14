@@ -108,16 +108,16 @@ export function CustomerTable({ customers, onCustomerDeleted }: CustomerTablePro
   };
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
-      <Table>
+    <div className="rounded-xl border border-border bg-card overflow-x-auto">
+      <Table className="w-full min-w-[800px]">
         <TableHeader>
           <TableRow className="border-border hover:bg-transparent">
-            <TableHead className="text-muted-foreground font-medium">Customer</TableHead>
-            <TableHead className="text-muted-foreground font-medium">Points</TableHead>
-            <TableHead className="text-muted-foreground font-medium">Purchases</TableHead>
-            <TableHead className="text-muted-foreground font-medium hidden md:table-cell">Progress</TableHead>
-            <TableHead className="text-muted-foreground font-medium hidden lg:table-cell">Joined</TableHead>
-            <TableHead className="text-muted-foreground font-medium text-right">Actions</TableHead>
+            <TableHead className="text-muted-foreground font-medium min-w-[200px]">Customer</TableHead>
+            <TableHead className="text-muted-foreground font-medium w-[100px]">Points</TableHead>
+            <TableHead className="text-muted-foreground font-medium w-[100px]">Purchases</TableHead>
+            <TableHead className="text-muted-foreground font-medium hidden sm:table-cell w-[200px]">Progress</TableHead>
+            <TableHead className="text-muted-foreground font-medium hidden md:table-cell w-[120px]">Joined</TableHead>
+            <TableHead className="text-muted-foreground font-medium text-right w-[80px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -164,20 +164,20 @@ export function CustomerTable({ customers, onCustomerDeleted }: CustomerTablePro
                     {customer.total_purchases}
                   </span>
                 </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Coffee className="w-4 h-4 text-primary" />
-                      <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden">
+                <TableCell className="hidden sm:table-cell">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <Coffee className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                      <div className="w-14 h-1.5 bg-secondary rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-primary rounded-full transition-all duration-500"
                           style={{ width: `${Math.min(100, Math.max(0, coffeeProgress))}%` }}
                         />
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <UtensilsCrossed className="w-4 h-4 text-warning" />
-                      <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="flex items-center gap-1.5">
+                      <UtensilsCrossed className="w-3.5 h-3.5 text-warning flex-shrink-0" />
+                      <div className="w-14 h-1.5 bg-secondary rounded-full overflow-hidden">
                         <div 
                           className="h-full bg-warning rounded-full transition-all duration-500"
                           style={{ width: `${Math.min(100, Math.max(0, mealProgress))}%` }}
@@ -186,8 +186,8 @@ export function CustomerTable({ customers, onCustomerDeleted }: CustomerTablePro
                     </div>
                   </div>
                 </TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  <span className="text-sm text-muted-foreground">
+                <TableCell className="hidden md:table-cell">
+                  <span className="text-sm text-muted-foreground whitespace-nowrap">
                     {customer.created_at ? new Date(customer.created_at).toLocaleDateString('en-US', { 
                       month: 'short', 
                       day: 'numeric',
