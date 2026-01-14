@@ -168,6 +168,13 @@ export default function AdminPage() {
     queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
   };
 
+  // Refresh data after customer deletion
+  const handleCustomerDeleted = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-customers'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-transactions'] });
+  };
+
   const filteredCustomers = customers.filter((c: any) => 
     c.full_name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
     c.email?.toLowerCase().includes(customerSearch.toLowerCase()) ||
@@ -401,17 +408,17 @@ export default function AdminPage() {
                 </div>
                 </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
+            <div className="space-y-6">
+              <div className="lg:max-w-md">
                 <CustomerForm onCustomerCreated={handleCustomerCreated} />
               </div>
-              <div className="lg:col-span-2">
+              <div className="w-full">
                 {customersLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                   </div>
                 ) : (
-                  <CustomerTable customers={filteredCustomers} />
+                  <CustomerTable customers={filteredCustomers} onCustomerDeleted={handleCustomerDeleted} />
                 )}
               </div>
             </div>

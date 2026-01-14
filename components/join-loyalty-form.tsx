@@ -49,6 +49,27 @@ export function JoinLoyaltyForm() {
 
       const supabase = createClient();
       
+      // Check for duplicate email if provided
+      const trimmedEmail = email.trim();
+      if (trimmedEmail) {
+        const { data: existingProfile, error: checkError } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .eq('email', trimmedEmail)
+          .not('email', 'is', null)
+          .maybeSingle();
+        
+        if (checkError) {
+          throw new Error('Failed to check email availability');
+        }
+        
+        if (existingProfile) {
+          setError('An account with this email already exists');
+          setIsLoading(false);
+          return;
+        }
+      }
+      
       // Create anonymous auth user (gets unique ID automatically)
       const authResult = await supabase.auth.signInAnonymously();
       

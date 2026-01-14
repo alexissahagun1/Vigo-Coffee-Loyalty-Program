@@ -40,6 +40,25 @@ export function SignUpForm({
     }
 
     try {
+      // Check for duplicate email in profiles table
+      const trimmedEmail = email.trim();
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', trimmedEmail)
+        .not('email', 'is', null)
+        .maybeSingle();
+      
+      if (checkError) {
+        throw new Error('Failed to check email availability');
+      }
+      
+      if (existingProfile) {
+        setError('An account with this email already exists');
+        setIsLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
