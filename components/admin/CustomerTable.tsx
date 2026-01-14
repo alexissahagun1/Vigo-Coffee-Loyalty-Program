@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -10,7 +11,17 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Coffee, UtensilsCrossed } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Coffee, UtensilsCrossed, Trash2, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface Customer {
   id: string;
@@ -24,9 +35,58 @@ interface Customer {
 
 interface CustomerTableProps {
   customers: Customer[];
+  onCustomerDeleted?: () => void;
 }
 
-export function CustomerTable({ customers }: CustomerTableProps) {
+export function CustomerTable({ customers, onCustomerDeleted }: CustomerTableProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
+
+  const handleDeleteClick = (customer: Customer) => {
+    setCustomerToDelete(customer);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!customerToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/admin/customers?id=${customerToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete customer');
+      }
+
+      toast({
+        title: "Customer deleted",
+        description: "The customer has been successfully removed.",
+      });
+
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+      
+      // Refresh the customer list
+      if (onCustomerDeleted) {
+        onCustomerDeleted();
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete customer. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const getInitials = (name: string | null, email: string | null) => {
     if (name && name.trim()) {
       return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -57,12 +117,13 @@ export function CustomerTable({ customers }: CustomerTableProps) {
             <TableHead className="text-muted-foreground font-medium">Purchases</TableHead>
             <TableHead className="text-muted-foreground font-medium hidden md:table-cell">Progress</TableHead>
             <TableHead className="text-muted-foreground font-medium hidden lg:table-cell">Joined</TableHead>
+            <TableHead className="text-muted-foreground font-medium text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {customers.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                 No customers found
               </TableCell>
             </TableRow>
@@ -134,12 +195,60 @@ export function CustomerTable({ customers }: CustomerTableProps) {
                     }) : 'N/A'}
                   </span>
                 </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteClick(customer)}
+                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </TableCell>
               </TableRow>
             );
           })
           )}
         </TableBody>
       </Table>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Customer</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {customerToDelete?.full_name || 'this customer'}? 
+              This action cannot be undone. All associated data including points, purchases, and transactions will be permanently deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setCustomerToDelete(null);
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

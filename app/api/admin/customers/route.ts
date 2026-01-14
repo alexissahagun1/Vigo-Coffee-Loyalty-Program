@@ -59,6 +59,31 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServiceRoleClient();
 
+    // Check for duplicate email if provided
+    const trimmedEmail = email?.trim();
+    if (trimmedEmail) {
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', trimmedEmail)
+        .not('email', 'is', null)
+        .maybeSingle();
+      
+      if (checkError) {
+        return NextResponse.json(
+          { error: "Failed to check email availability" },
+          { status: 500 }
+        );
+      }
+      
+      if (existingProfile) {
+        return NextResponse.json(
+          { error: "An account with this email already exists" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Generate a unique email for anonymous user (won't be used for login)
     // Format: anonymous-{timestamp}-{random}@vigo-loyalty.local
     const anonymousEmail = `anonymous-${Date.now()}-${randomBytes(8).toString('hex')}@vigo-loyalty.local`;
@@ -168,3 +193,63 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// DELETE - Delete a customer
+export async function DELETE(req: NextRequest) {
+  try {
+    // SECURITY: Require admin authentication
+    const authError = await requireAdminAuth();
+    if (authError) {
+      return authError;
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Customer ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createServiceRoleClient();
+
+    // Delete profile first (this will CASCADE delete related transactions)
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id);
+
+    if (profileError) {
+      return NextResponse.json(
+        { error: profileError.message || "Failed to delete customer profile" },
+        { status: 500 }
+      );
+    }
+
+    // Then delete auth user
+    const { error: authError } = await supabase.auth.admin.deleteUser(id);
+
+    if (authError) {
+      // Log the error but don't fail the request since profile is already deleted
+      console.error('Failed to delete auth user after profile deletion:', authError);
+      // Still return success since the profile (main data) is deleted
+      return NextResponse.json({
+        success: true,
+        message: "Customer deleted successfully (profile removed, auth cleanup may be pending)",
+        warning: authError.message
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Customer deleted successfully"
+    });
+
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error.message || "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
