@@ -228,16 +228,16 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Then delete auth user
-    const { error: authError } = await supabase.auth.admin.deleteUser(id);
+    const { error: deleteUserError } = await supabase.auth.admin.deleteUser(id);
 
-    if (authError) {
+    if (deleteUserError) {
       // Log the error but don't fail the request since profile is already deleted
-      console.error('Failed to delete auth user after profile deletion:', authError);
+      console.error('Failed to delete auth user after profile deletion:', deleteUserError);
       // Still return success since the profile (main data) is deleted
       return NextResponse.json({
         success: true,
         message: "Customer deleted successfully (profile removed, auth cleanup may be pending)",
-        warning: authError.message
+        warning: deleteUserError.message
       });
     }
 
