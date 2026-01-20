@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { QRCodeSVG } from "qrcode.react";
-import { Copy, Share2, Loader2, Gift } from "lucide-react";
+import Link from "next/link";
+import { Copy, Share2, Loader2, Gift, ArrowLeft } from "lucide-react";
 
 interface GiftCardData {
   id: string;
@@ -185,6 +186,13 @@ export default function CreateGiftCardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/10">
       <div className="container mx-auto p-4 max-w-2xl">
+        <Link
+          href="/admin"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Return to Dashboard
+        </Link>
         <div className="flex flex-col items-center mb-6">
           <Image
             src="/assets/vigo-logo.jpg"

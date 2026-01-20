@@ -33,6 +33,7 @@ import { CustomerForm } from "@/components/admin/CustomerForm";
 import { AnalyticsOverview } from "@/components/admin/AnalyticsOverview";
 import { GiftCardTable } from "@/components/admin/GiftCardTable";
 import { GiftCardAnalytics } from "@/components/admin/GiftCardAnalytics";
+import { RefreshButton } from "@/components/admin/RefreshButton";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -99,31 +100,41 @@ export default function AdminPage() {
   // Check authentication and authorization
   useEffect(() => {
     async function checkAuth() {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (!user) {
+      const supabase = createClient();
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+        if (userError) {
+          throw userError;
+        }
+
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        // Check if user is an active admin employee
+        const { data: employee, error } = await supabase
+          .from('employees')
+          .select('is_admin, is_active, username')
+          .eq('id', user.id)
+          .single();
+
+        if (error || !employee || !employee.is_active || !employee.is_admin) {
+          // Not an admin or not active, redirect to scan page
+          router.push('/scan');
+          return;
+        }
+
+        // Set the username for personalization
+        setUsername(employee.username || undefined);
+        setIsAuthorized(true);
+      } catch (error) {
+        console.error('Error checking admin access:', error);
         router.push('/login');
-      return;
-    }
-
-      // Check if user is an active admin employee
-      const { data: employee, error } = await supabase
-      .from('employees')
-      .select('is_admin, is_active, username')
-      .eq('id', user.id)
-      .single();
-
-      if (error || !employee || !employee.is_active || !employee.is_admin) {
-        // Not an admin or not active, redirect to scan page
-        router.push('/scan');
-      return;
-    }
-
-      // Set the username for personalization
-      setUsername(employee.username || undefined);
-      setIsAuthorized(true);
-      setIsCheckingAuth(false);
+      } finally {
+        setIsCheckingAuth(false);
+      }
     }
 
     checkAuth();
@@ -134,7 +145,6 @@ export default function AdminPage() {
     queryKey: ['admin-stats'],
     queryFn: fetchStats,
     enabled: isAuthorized,
-    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
   const { data: customers = [], isLoading: customersLoading } = useQuery({
@@ -161,14 +171,12 @@ export default function AdminPage() {
     queryKey: ['admin-transactions'],
     queryFn: fetchTransactions,
     enabled: isAuthorized,
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
   });
 
   const { data: giftCards = [], isLoading: giftCardsLoading } = useQuery({
     queryKey: ['admin-gift-cards'],
     queryFn: fetchGiftCards,
     enabled: isAuthorized,
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
   });
 
   // Refresh data after invitation creation
@@ -213,8 +221,8 @@ export default function AdminPage() {
 
   const filteredEmployees = employees.filter((e: any) => 
     e.full_name?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-    e.email.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-    e.username.toLowerCase().includes(employeeSearch.toLowerCase())
+    e.email?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+    e.username?.toLowerCase().includes(employeeSearch.toLowerCase())
   );
 
   const filteredGiftCards = giftCards.filter((gc: any) => 
@@ -301,6 +309,12 @@ export default function AdminPage() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-8">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-display font-bold">Overview</h2>
+              <RefreshButton
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-stats'] })}
+              />
+            </div>
             {/* Stats Grid */}
             {statsLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -412,14 +426,35 @@ export default function AdminPage() {
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-8">
+            <div className="flex justify-end">
+              <RefreshButton
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ['analytics-transactions'] });
+                  queryClient.invalidateQueries({ queryKey: ['analytics-growth'] });
+                  queryClient.invalidateQueries({ queryKey: ['analytics-redemptions'] });
+                  queryClient.invalidateQueries({ queryKey: ['analytics-forecast'] });
+                  queryClient.invalidateQueries({ queryKey: ['analytics-segments'] });
+                  queryClient.invalidateQueries({ queryKey: ['analytics-employees'] });
+                  queryClient.invalidateQueries({ queryKey: ['analytics-churn'] });
+                  queryClient.invalidateQueries({ queryKey: ['analytics-next-purchase'] });
+                  queryClient.invalidateQueries({ queryKey: ['analytics-clv'] });
+                  queryClient.invalidateQueries({ queryKey: ['total-purchases'] });
+                }}
+              />
+            </div>
             <AnalyticsOverview />
           </TabsContent>
 
           {/* Transactions Tab */}
           <TabsContent value="transactions" className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-display font-bold">Transactions</h2>
-              <p className="text-muted-foreground">View all customer transactions and redemptions</p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-display font-bold">Transactions</h2>
+                <p className="text-muted-foreground">View all customer transactions and redemptions</p>
+              </div>
+              <RefreshButton
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-transactions'] })}
+              />
             </div>
             {transactionsLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -437,13 +472,18 @@ export default function AdminPage() {
                 <h2 className="text-2xl font-display font-bold">Customers</h2>
                 <p className="text-muted-foreground">Manage your loyalty program members</p>
               </div>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search customers..."
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                  className="pl-10"
+              <div className="flex gap-2">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search customers..."
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <RefreshButton
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-customers'] })}
                 />
                 </div>
                 </div>
@@ -471,13 +511,18 @@ export default function AdminPage() {
                 <h2 className="text-2xl font-display font-bold">Employees</h2>
                 <p className="text-muted-foreground">Manage your team members</p>
               </div>
-              <div className="relative w-full sm:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                  placeholder="Search employees..."
-                  value={employeeSearch}
-                  onChange={(e) => setEmployeeSearch(e.target.value)}
-                  className="pl-10"
+              <div className="flex gap-2">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search employees..."
+                    value={employeeSearch}
+                    onChange={(e) => setEmployeeSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <RefreshButton
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-employees'] })}
                 />
               </div>
             </div>
@@ -495,10 +540,15 @@ export default function AdminPage() {
 
           {/* Invitations Tab */}
           <TabsContent value="invitations" className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-display font-bold">Invitations</h2>
-              <p className="text-muted-foreground">Invite new team members to join</p>
-                </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-display font-bold">Invitations</h2>
+                <p className="text-muted-foreground">Invite new team members to join</p>
+              </div>
+              <RefreshButton
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['admin-invitations'] })}
+              />
+            </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-1">
@@ -533,6 +583,15 @@ export default function AdminPage() {
                     className="pl-10"
                   />
                 </div>
+                <RefreshButton
+                  onClick={() => {
+                    queryClient.invalidateQueries({ queryKey: ['admin-gift-cards'] });
+                    queryClient.invalidateQueries({ queryKey: ['gift-card-stats'] });
+                    queryClient.invalidateQueries({ queryKey: ['gift-card-transactions'] });
+                    queryClient.invalidateQueries({ queryKey: ['gift-card-growth'] });
+                    queryClient.invalidateQueries({ queryKey: ['gift-cards-for-distribution'] });
+                  }}
+                />
                 <Link href="/gift-card/create">
                   <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
                     <Gift className="mr-2 h-4 w-4" />
@@ -542,12 +601,9 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Gift Card Analytics */}
-            <GiftCardAnalytics />
-
-            {/* Gift Card Table */}
+            {/* All Gift Cards Table - at top */}
             <div>
-              <h3 className="text-xl font-display font-bold mb-4">All Gift Cards</h3>
+              {/* <h3 className="text-xl font-display font-bold mb-4">All Gift Cards</h3> */}
               {giftCardsLoading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -559,6 +615,9 @@ export default function AdminPage() {
                 />
               )}
             </div>
+
+            {/* Gift Card Analytics */}
+            <GiftCardAnalytics />
           </TabsContent>
         </Tabs>
       </main>

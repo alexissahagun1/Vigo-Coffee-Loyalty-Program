@@ -9,8 +9,9 @@ import { Histogram } from "./charts/Histogram";
 import { PieChart } from "./charts/PieChart";
 import { DateRangePicker } from "./DateRangePicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Gift, Wallet, TrendingDown, Coins } from "lucide-react";
 import { HelpTooltip } from "./HelpTooltip";
+import { cn } from "@/lib/utils";
 
 // API fetch functions
 async function fetchGiftCardTransactions(startDate: string, endDate: string, groupBy: string) {
@@ -151,31 +152,42 @@ export function GiftCardAnalytics() {
 
   return (
     <div className="space-y-8">
-      {/* Date Range Picker */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-display font-bold">Gift Card Analytics</h2>
-          <p className="text-muted-foreground">View gift card performance and usage over time</p>
+      {/* Header with controls */}
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-display font-bold tracking-tight">Gift Card Analytics</h2>
+            <p className="text-muted-foreground mt-0.5">Performance and usage over time</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground mr-1 hidden sm:inline">Group by:</span>
+            <div className="inline-flex p-0.5 rounded-lg bg-muted/60 border border-border/60">
+              {(["day", "week", "month"] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setGroupBy(g)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm font-medium rounded-md transition-all",
+                    groupBy === g
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {g === "day" ? "Day" : g === "week" ? "Week" : "Month"}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <select
-            value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value as "day" | "week" | "month")}
-            className="px-3 py-2 border rounded-md bg-background"
-          >
-            <option value="day">By Day</option>
-            <option value="week">By Week</option>
-            <option value="month">By Month</option>
-          </select>
-        </div>
-      </div>
 
-      <DateRangePicker
-        startDate={startDate}
-        endDate={endDate}
-        onStartDateChange={setStartDate}
-        onEndDateChange={setEndDate}
-      />
+        <DateRangePicker
+          startDate={startDate}
+          endDate={endDate}
+          onStartDateChange={setStartDate}
+          onEndDateChange={setEndDate}
+        />
+      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -185,58 +197,78 @@ export function GiftCardAnalytics() {
         <>
           {/* Summary Cards */}
           {stats?.stats && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="overflow-hidden border-border/70 shadow-sm hover:shadow transition-shadow">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Total Gift Cards
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Total Gift Cards
+                    </CardTitle>
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Gift className="h-4 w-4 text-primary" />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-2xl font-display font-bold tabular-nums">
                     {stats.stats.totalGiftCards || 0}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Created</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="overflow-hidden border-border/70 shadow-sm hover:shadow transition-shadow">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Total Balance Issued
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Balance Issued
+                    </CardTitle>
+                    <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                      <Wallet className="h-4 w-4 text-[hsl(var(--chart-2))]" />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-2xl font-display font-bold tabular-nums">
                     {formatCurrency(stats.stats.totalBalanceIssued || 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">MXN</p>
+                  <p className="text-xs text-muted-foreground mt-1">MXN issued</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="overflow-hidden border-border/70 shadow-sm hover:shadow transition-shadow">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Total Balance Used
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Balance Used
+                    </CardTitle>
+                    <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                      <TrendingDown className="h-4 w-4 text-[hsl(var(--chart-3))]" />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-2xl font-display font-bold tabular-nums">
                     {formatCurrency(stats.stats.totalBalanceUsed || 0)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {stats.stats.totalBalanceIssued > 0
                       ? `${((stats.stats.totalBalanceUsed / stats.stats.totalBalanceIssued) * 100).toFixed(1)}% used`
-                      : '0% used'}
+                      : "0% used"}
                   </p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="overflow-hidden border-border/70 shadow-sm hover:shadow transition-shadow">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">
-                    Average Value
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Average Value
+                    </CardTitle>
+                    <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+                      <Coins className="h-4 w-4 text-[hsl(var(--chart-4))]" />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-2xl font-display font-bold tabular-nums">
                     {formatCurrency(stats.stats.averageGiftCardValue || 0)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">Per gift card</p>
@@ -245,62 +277,67 @@ export function GiftCardAnalytics() {
             </div>
           )}
 
-          {/* Gift Card Activity and Growth */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Gift Card Activity */}
-            <AreaChart
-              data={transactionsData}
-              title="Gift Card Activity"
-              description="Shows gift card transactions and total amount deducted over time"
-              dataKeys={[
-                { key: "transactions", label: "Transactions", color: "hsl(var(--chart-1))" },
-                { key: "totalAmount", label: "Total Amount (MXN)", color: "hsl(var(--chart-2))" },
-              ]}
-              yAxisLabel="Transactions / Amount"
-              groupBy={groupBy}
-            />
+          {/* Activity & Growth */}
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">Activity & growth</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <AreaChart
+                data={transactionsData}
+                title="Gift Card Activity"
+                description="Transactions and amount deducted over time"
+                dataKeys={[
+                  { key: "transactions", label: "Transactions", color: "hsl(var(--chart-1))", format: "number" },
+                  { key: "totalAmount", label: "Amount (MXN)", color: "hsl(var(--chart-2))", format: "currency" },
+                ]}
+                yAxisLabel="Transactions / Amount"
+                groupBy={groupBy}
+              />
 
-            {/* Gift Card Growth */}
-            <LineChart
-              data={growthData}
-              title="Gift Card Growth"
-              description="Shows how many new gift cards were created over time"
-              dataKey="newGiftCards"
-              yAxisLabel="New Gift Cards"
-              groupBy={groupBy}
-            />
+              <LineChart
+                data={growthData}
+                title="Gift Card Growth"
+                description="New gift cards created over time"
+                dataKey="newGiftCards"
+                seriesName="New gift cards"
+                yAxisLabel="New Gift Cards"
+                groupBy={groupBy}
+              />
+            </div>
           </div>
 
-          {/* Status Breakdown and Balance Distribution */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Status Breakdown */}
-            {statusData.length > 0 && (
-              <PieChart
-                data={statusData}
-                title="Status Breakdown"
-                description="Shows the breakdown of active vs inactive gift cards"
-              />
-            )}
-
-            {/* Claimed vs Unclaimed */}
-            {claimedData.length > 0 && (
-              <PieChart
-                data={claimedData}
-                title="Claimed vs Unclaimed"
-                description="Shows how many gift cards have been claimed by recipients"
-              />
-            )}
+          {/* Status & claim */}
+          <div>
+            <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">Status & claim</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {statusData.length > 0 && (
+                <PieChart
+                  data={statusData}
+                  title="Status Breakdown"
+                  description="Active vs inactive gift cards"
+                />
+              )}
+              {claimedData.length > 0 && (
+                <PieChart
+                  data={claimedData}
+                  title="Claimed vs Unclaimed"
+                  description="Claimed by recipients vs not yet used"
+                />
+              )}
+            </div>
           </div>
 
-          {/* Balance Distribution */}
+          {/* Balance distribution */}
           {histogramData.length > 0 && (
-            <Histogram
-              data={histogramData}
-              title="Balance Distribution"
-              description="Shows how gift card balances are distributed across different ranges"
-              xAxisLabel="Balance Range (MXN)"
-              yAxisLabel="Number of Gift Cards"
-            />
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">Balance distribution</h3>
+              <Histogram
+                data={histogramData}
+                title="Balance Distribution"
+                description="Gift card balances by range"
+                xAxisLabel="Balance Range (MXN)"
+                yAxisLabel="Number of Gift Cards"
+              />
+            </div>
           )}
         </>
       )}

@@ -80,28 +80,38 @@ export default function AdminPage() {
   useEffect(() => {
     async function checkAuth() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-      if (!user) {
+        if (userError) {
+          throw userError;
+        }
+
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        // Check if user is an active admin employee
+        const { data: employee, error } = await supabase
+          .from('employees')
+          .select('is_admin, is_active')
+          .eq('id', user.id)
+          .single();
+
+        if (error || !employee || !employee.is_active || !employee.is_admin) {
+          // Not an admin or not active, redirect to scan page
+          router.push('/scan');
+          return;
+        }
+
+        setIsAuthorized(true);
+      } catch (error) {
+        console.error('Error checking admin access:', error);
         router.push('/login');
-        return;
+      } finally {
+        setIsCheckingAuth(false);
       }
-
-      // Check if user is an active admin employee
-      const { data: employee, error } = await supabase
-        .from('employees')
-        .select('is_admin, is_active')
-        .eq('id', user.id)
-        .single();
-
-      if (error || !employee || !employee.is_active || !employee.is_admin) {
-        // Not an admin or not active, redirect to scan page
-        router.push('/scan');
-        return;
-      }
-
-      setIsAuthorized(true);
-      setIsCheckingAuth(false);
     }
 
     checkAuth();
@@ -166,8 +176,8 @@ export default function AdminPage() {
 
   const filteredEmployees = employees.filter(e => 
     e.full_name?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-    e.email.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-    e.username.toLowerCase().includes(employeeSearch.toLowerCase())
+    e.email?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
+    e.username?.toLowerCase().includes(employeeSearch.toLowerCase())
   );
 
   const filteredGiftCards = giftCards.filter(gc => 
@@ -490,10 +500,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Gift Card Analytics */}
-            <GiftCardAnalytics />
-
-            {/* Gift Card Table */}
+            {/* All Gift Cards Table - at top */}
             <div>
               <h3 className="text-xl font-display font-bold mb-4">All Gift Cards</h3>
               {giftCardsLoading ? (
@@ -507,6 +514,9 @@ export default function AdminPage() {
                 />
               )}
             </div>
+
+            {/* Gift Card Analytics */}
+            <GiftCardAnalytics />
           </TabsContent>
         </Tabs>
       </main>
