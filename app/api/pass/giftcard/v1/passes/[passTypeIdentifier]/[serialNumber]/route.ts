@@ -97,28 +97,24 @@ export async function GET(
     }
 
     // Configure Web Service URL
-    // Strategy: Use production URL if available (stable), otherwise use current preview URL
-    // NOTE: For preview testing, the pass will work until the next deployment (URL changes)
+    // Strategy: Use preview URL for preview deployments (works for testing), production URL for production
+    // NOTE: Preview URLs change between deployments - pass will break after redeploy
     // For production, always use NEXT_PUBLIC_APP_URL for stability
     let baseUrl: string;
-    const isPreview = process.env.VERCEL_ENV === 'preview';
+    const isPreview = process.env.VERCEL_URL?.includes('git-') || process.env.VERCEL_ENV === 'preview';
     
-    if (process.env.NEXT_PUBLIC_APP_URL && !isPreview) {
-      // Production: Use stable production URL
+    if (isPreview && process.env.VERCEL_URL) {
+      // Preview deployment: Use current preview URL (works for immediate testing)
+      baseUrl = `https://${process.env.VERCEL_URL}`;
+    } else if (process.env.NEXT_PUBLIC_APP_URL) {
+      // Production or fallback: Use stable production URL
       baseUrl = process.env.NEXT_PUBLIC_APP_URL;
       if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
         baseUrl = `https://${baseUrl}`;
       }
     } else if (process.env.VERCEL_URL) {
-      // Preview or no production URL: Use current deployment URL
-      // WARNING: Preview URLs change between deployments - pass will break after redeploy
+      // Fallback: Use VERCEL_URL if no production URL set
       baseUrl = `https://${process.env.VERCEL_URL}`;
-    } else if (process.env.NEXT_PUBLIC_APP_URL) {
-      // Fallback: Use production URL even on preview (if endpoints exist in production)
-      baseUrl = process.env.NEXT_PUBLIC_APP_URL;
-      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-        baseUrl = `https://${baseUrl}`;
-      }
     } else {
       // Local development fallback
       baseUrl = 'http://localhost:3000';
