@@ -18,7 +18,7 @@ interface AreaChartProps {
   data: Array<{ date: string; [key: string]: string | number }>;
   title: string;
   description?: string;
-  dataKeys: Array<{ key: string; label: string; color?: string }>;
+  dataKeys: Array<{ key: string; label: string; color?: string; format?: "number" | "currency" }>;
   yAxisLabel?: string;
   className?: string;
   groupBy?: "day" | "week" | "month";
@@ -119,6 +119,13 @@ function formatDateForTooltip(value: string, groupBy?: "day" | "week" | "month")
   }
 }
 
+const formatTooltipValue = (value: number, format?: "number" | "currency") => {
+  if (format === "currency") {
+    return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2 }).format(value);
+  }
+  return new Intl.NumberFormat("es-MX").format(value);
+};
+
 export function AreaChart({
   data,
   title,
@@ -136,14 +143,17 @@ export function AreaChart({
     "hsl(var(--chart-5))",
   ];
 
+  const getFormat = (labelOrKey: string) =>
+    dataKeys.find((k) => k.key === labelOrKey || k.label === labelOrKey)?.format;
+
   return (
-    <Card className={className}>
-      <CardHeader>
+    <Card className={`overflow-hidden shadow-sm hover:shadow-md transition-shadow border-border/80 ${className ?? ""}`}>
+      <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg font-semibold">{title}</CardTitle>
             {description && (
-              <p className="text-sm text-muted-foreground mt-1">{description}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
             )}
           </div>
           {description && <HelpTooltip content={description} />}
@@ -151,7 +161,11 @@ export function AreaChart({
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
-          <RechartsAreaChart data={data}>
+          <RechartsAreaChart
+            data={data}
+            margin={{ top: 8, right: 8, left: 4, bottom: 4 }}
+            style={{ cursor: "default" }}
+          >
             <defs>
               {dataKeys.map((dataKey, index) => (
                 <linearGradient
@@ -163,34 +177,46 @@ export function AreaChart({
                   y2="1"
                 >
                   <stop
-                    offset="5%"
+                    offset="0%"
                     stopColor={dataKey.color || colors[index % colors.length]}
-                    stopOpacity={0.8}
+                    stopOpacity={0.4}
                   />
                   <stop
-                    offset="95%"
+                    offset="100%"
                     stopColor={dataKey.color || colors[index % colors.length]}
-                    stopOpacity={0.1}
+                    stopOpacity={0.05}
                   />
                 </linearGradient>
               ))}
             </defs>
-            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.6} vertical={false} />
             <XAxis
               dataKey="date"
-              className="text-xs"
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              axisLine={{ stroke: "hsl(var(--border))" }}
+              tickLine={false}
               tickFormatter={(value) => formatDateForDisplay(value, groupBy)}
             />
-            <YAxis className="text-xs" label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: "insideLeft" } : undefined} />
+            <YAxis
+              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              axisLine={false}
+              tickLine={false}
+              label={yAxisLabel ? { value: yAxisLabel, angle: -90, position: "insideLeft", style: { fontSize: 11 } } : undefined}
+            />
             <Tooltip
               contentStyle={{
-                backgroundColor: "hsl(var(--background))",
+                backgroundColor: "hsl(var(--card))",
                 border: "1px solid hsl(var(--border))",
-                borderRadius: "6px",
+                borderRadius: "8px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                padding: "10px 14px",
               }}
+              labelStyle={{ fontWeight: 600, marginBottom: 6 }}
               labelFormatter={(value) => formatDateForTooltip(value, groupBy)}
+              formatter={(value, name) => [formatTooltipValue(Number(value ?? 0), getFormat(String(name ?? ""))), typeof name === "string" ? name : String(name ?? "")]}
+              cursor={{ stroke: "hsl(var(--border))", strokeWidth: 1, strokeDasharray: "4 4" }}
             />
-            <Legend />
+            <Legend wrapperStyle={{ fontSize: 12 }} iconType="circle" iconSize={8} />
             {dataKeys.map((dataKey, index) => (
               <Area
                 key={dataKey.key}
@@ -198,7 +224,11 @@ export function AreaChart({
                 dataKey={dataKey.key}
                 name={dataKey.label}
                 stroke={dataKey.color || colors[index % colors.length]}
+                strokeWidth={2}
                 fill={`url(#color${dataKey.key})`}
+                isAnimationActive
+                animationDuration={600}
+                animationEasing="ease-out"
               />
             ))}
           </RechartsAreaChart>

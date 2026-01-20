@@ -32,6 +32,8 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get("endDate");
     const customerId = searchParams.get("customerId");
     const employeeId = searchParams.get("employeeId");
+    const limitParam = searchParams.get("limit");
+    const limit = limitParam ? Math.min(200, Math.max(1, parseInt(limitParam, 10) || 0)) : null;
 
     const supabase = createServiceRoleClient();
 
@@ -63,9 +65,12 @@ export async function GET(req: NextRequest) {
       query = query.eq('employee_id', employeeId);
     }
 
-    // Order by newest first (no pagination - fetch all)
-    const { data: transactionsData, error, count } = await query
-      .order('created_at', { ascending: false });
+    // Order by newest first; optional limit for CSV export (50/100/200)
+    let ordered = query.order('created_at', { ascending: false });
+    if (limit !== null) {
+      ordered = ordered.limit(limit);
+    }
+    const { data: transactionsData, error, count } = await ordered;
 
     if (error) {
       console.error('Transactions API error:', error);

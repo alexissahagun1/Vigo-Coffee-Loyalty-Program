@@ -315,11 +315,20 @@ export async function GET(
       console.log(`[${timestamp}]    Balance in pass: $${balanceMxn.toFixed(2)} MXN`);
       console.log(`[${timestamp}]    Pass size: ${buffer.length} bytes`);
       
+      // Use updated_at timestamp for Last-Modified header (required by Apple)
+      const lastModified = giftCard.updated_at 
+        ? new Date(giftCard.updated_at).toUTCString()
+        : new Date().toUTCString();
+      console.log(`[${timestamp}]    Last-Modified: ${lastModified}`);
+      
       return new NextResponse(buffer as unknown as BodyInit, {
         headers: {
           'Content-Type': 'application/vnd.apple.pkpass',
           'Content-Disposition': 'attachment; filename=gift-card.pkpass',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Last-Modified': lastModified,
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
         },
       });
     } catch (error: any) {
