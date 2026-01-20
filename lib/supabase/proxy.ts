@@ -177,6 +177,7 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/auth") &&
     !request.nextUrl.pathname.startsWith("/join") &&
     !request.nextUrl.pathname.startsWith("/scan") &&
+    !request.nextUrl.pathname.startsWith("/gift-card") &&
     !request.nextUrl.pathname.startsWith("/api/pass") &&
     !request.nextUrl.pathname.startsWith("/api/wallet") &&
     !request.nextUrl.pathname.startsWith("/api/test") &&
@@ -184,6 +185,7 @@ export async function updateSession(request: NextRequest) {
     !request.nextUrl.pathname.startsWith("/api/redeem") &&
     !request.nextUrl.pathname.startsWith("/api/purchase") &&
     !request.nextUrl.pathname.startsWith("/api/admin") &&
+    !request.nextUrl.pathname.startsWith("/api/gift-cards/share") &&
     !request.nextUrl.pathname.startsWith("/api/auth/employee/login") &&
     !request.nextUrl.pathname.startsWith("/api/auth/employee/check")
   ) {

@@ -198,11 +198,12 @@ export async function notifyRewardEarned(
  * Checks if push notifications are configured
  */
 export function isPushNotificationsConfigured(): boolean {
+  // Check if APNs is configured (works for both loyalty and gift cards)
   return !!(
     process.env.APNS_KEY_ID &&
     process.env.APNS_TEAM_ID &&
     process.env.APNS_KEY_BASE64 &&
-    process.env.PASS_TYPE_ID
+    (process.env.PASS_TYPE_ID || process.env.GIFT_CARD_PASS_TYPE_ID)
   );
 }
 

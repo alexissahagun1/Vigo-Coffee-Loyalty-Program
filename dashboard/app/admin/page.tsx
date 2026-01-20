@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { 
   Users, 
   UserCheck, 
@@ -14,7 +15,8 @@ import {
   LayoutDashboard,
   Search,
   Coffee,
-  Loader2
+  Loader2,
+  Gift
 } from "lucide-react";
 
 import { DashboardHeader } from "@/components/admin/DashboardHeader";
@@ -24,7 +26,10 @@ import { EmployeeTable } from "@/components/admin/EmployeeTable";
 import { InvitationTable } from "@/components/admin/InvitationTable";
 import { TopCustomers } from "@/components/admin/TopCustomers";
 import { InviteForm } from "@/components/admin/InviteForm";
+import { GiftCardTable } from "@/components/admin/GiftCardTable";
+import { GiftCardAnalytics } from "@/components/admin/GiftCardAnalytics";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
 
 // API fetch functions
 async function fetchStats() {
@@ -55,11 +60,19 @@ async function fetchInvitations() {
   return data.invitations;
 }
 
+async function fetchGiftCards() {
+  const res = await fetch('/api/admin/gift-cards');
+  if (!res.ok) throw new Error('Failed to fetch gift cards');
+  const data = await res.json();
+  return data.giftCards;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [customerSearch, setCustomerSearch] = useState("");
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [giftCardSearch, setGiftCardSearch] = useState("");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
@@ -121,6 +134,12 @@ export default function AdminPage() {
     refetchInterval: 10000, // Refetch every 10 seconds
   });
 
+  const { data: giftCards = [], isLoading: giftCardsLoading } = useQuery({
+    queryKey: ['admin-gift-cards'],
+    queryFn: fetchGiftCards,
+    enabled: isAuthorized,
+  });
+
   // Refresh data after invitation creation
   const handleInviteCreated = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-invitations'] });
@@ -131,6 +150,13 @@ export default function AdminPage() {
   const handleEmployeeUpdated = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
     queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+  };
+
+  // Refresh data after gift card update
+  const handleGiftCardUpdated = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-gift-cards'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['gift-card-stats'] });
   };
 
   const filteredCustomers = customers.filter(c => 
@@ -144,7 +170,20 @@ export default function AdminPage() {
     e.username.toLowerCase().includes(employeeSearch.toLowerCase())
   );
 
+  const filteredGiftCards = giftCards.filter(gc => 
+    gc.recipient_name?.toLowerCase().includes(giftCardSearch.toLowerCase()) ||
+    gc.serial_number?.toLowerCase().includes(giftCardSearch.toLowerCase())
+  );
+
   const topCustomers = stats?.topCustomers || [];
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 2,
+    }).format(amount);
+  };
 
   // Show loading state while checking auth
   if (isCheckingAuth) {
@@ -197,6 +236,13 @@ export default function AdminPage() {
             >
               <Mail className="w-4 h-4" />
               <span className="hidden sm:inline">Invitations</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="gift-cards"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+            >
+              <Gift className="w-4 h-4" />
+              <span className="hidden sm:inline">Gift Cards</span>
             </TabsTrigger>
           </TabsList>
 
@@ -255,12 +301,47 @@ export default function AdminPage() {
                   trend={{ value: 5, isPositive: true }}
                   delay={6}
                 />
+                {stats.totalGiftCards !== undefined && (
+                  <>
+                    <StatCard
+                      title="Total Gift Cards"
+                      value={stats.totalGiftCards.toLocaleString()}
+                      subtitle="Created"
+                      icon={Gift}
+                      delay={7}
+                    />
+                    <StatCard
+                      title="Gift Card Balance"
+                      value={formatCurrency(stats.totalGiftCardBalance || 0)}
+                      subtitle="Total issued"
+                      icon={Gift}
+                      delay={8}
+                    />
+                    <StatCard
+                      title="Gift Cards Claimed"
+                      value={stats.giftCardsClaimed?.toLocaleString() || "0"}
+                      subtitle={`${stats.totalGiftCards > 0 ? Math.round((stats.giftCardsClaimed / stats.totalGiftCards) * 100) : 0}% claim rate`}
+                      icon={Gift}
+                      delay={9}
+                    />
+                  </>
+                )}
               </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 Failed to load statistics
               </div>
             )}
+
+            {/* Create Gift Card Link */}
+            <div className="flex justify-end">
+              <Link href="/gift-card/create">
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <Gift className="mr-2 h-4 w-4" />
+                  Create Gift Card
+                </Button>
+              </Link>
+            </div>
 
             {/* Top Customers */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -380,6 +461,51 @@ export default function AdminPage() {
                   <InvitationTable invitations={invitations} />
                 )}
               </div>
+            </div>
+          </TabsContent>
+
+          {/* Gift Cards Tab */}
+          <TabsContent value="gift-cards" className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-display font-bold">Gift Cards</h2>
+                <p className="text-muted-foreground">Manage gift cards and view analytics</p>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search gift cards..."
+                    value={giftCardSearch}
+                    onChange={(e) => setGiftCardSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Link href="/gift-card/create">
+                  <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <Gift className="mr-2 h-4 w-4" />
+                    Create Gift Card
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Gift Card Analytics */}
+            <GiftCardAnalytics />
+
+            {/* Gift Card Table */}
+            <div>
+              <h3 className="text-xl font-display font-bold mb-4">All Gift Cards</h3>
+              {giftCardsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <GiftCardTable 
+                  giftCards={filteredGiftCards} 
+                  onGiftCardUpdated={handleGiftCardUpdated}
+                />
+              )}
             </div>
           </TabsContent>
         </Tabs>

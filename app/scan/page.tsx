@@ -3,12 +3,16 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import Image from "next/image";
-import { QrCode } from "lucide-react";
+import { QrCode, Gift, CreditCard, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
 
 
 interface CustomerData {
@@ -25,8 +29,24 @@ interface CustomerData {
     };
 }
 
+interface GiftCardData {
+    id: string;
+    serialNumber: string;
+    recipientName: string;
+    balance: number;
+    initialBalance: number;
+    isActive: boolean;
+    claimedAt: string | null;
+    recipientUserId: string | null;
+}
+
+type ScanMode = "loyalty" | "gift-card";
+
 export default function ScanPage() {
+    const [scanMode, setScanMode] = useState<ScanMode>("loyalty");
     const [customer, setCustomer] = useState<CustomerData | null>(null);
+    const [giftCard, setGiftCard] = useState<GiftCardData | null>(null);
+    const [saleTotal, setSaleTotal] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isScanning, setIsScanning] = useState(false);
@@ -70,7 +90,7 @@ export default function ScanPage() {
     };
 
     // Use ref to store handleScan so it can be called from startScanning callback
-    const handleScanRef = useRef<((userId: string) => Promise<void>) | null>(null);
+    const handleScanRef = useRef<((qrData: string) => Promise<void>) | null>(null);
 
     // Stop scanning
     const stopScanning = useCallback(async () => {
@@ -165,11 +185,26 @@ export default function ScanPage() {
             console.error("Error starting scanner:", err);
             setCameraPermission("denied");
             isScanningRef.current = false;
-            const errorMessage = "Failed to access camera. Please allow camera permissions and try again.";
-            setError(errorMessage);
+            
+            // Check if error is due to insecure context (camera requires HTTPS or localhost)
+            const errorMessage = err?.message || err?.toString() || "";
+            const isInsecureContext = errorMessage.includes("secure context") || 
+                                     errorMessage.includes("HTTPS") ||
+                                     errorMessage.includes("getUserMedia") ||
+                                     (typeof window !== 'undefined' && !window.isSecureContext);
+            
+            let userMessage: string;
+            if (isInsecureContext || (typeof window !== 'undefined' && window.location.protocol === 'http:' && !window.location.hostname.includes('localhost'))) {
+                userMessage = "Camera access requires a secure connection. Please access this page via localhost (http://localhost:3000) or use HTTPS.";
+                setError(userMessage);
+            } else {
+                userMessage = "Failed to access camera. Please allow camera permissions and try again.";
+                setError(userMessage);
+            }
+            
             toast({
                 title: "Camera Error",
-                description: errorMessage,
+                description: userMessage,
                 variant: "destructive",
             });
         }
@@ -259,17 +294,21 @@ export default function ScanPage() {
         return null;
     }
 
-    const handleScan = async (userId: string) => {
-        // Validate userId format (should be a UUID)
-        if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
-            const errorMessage = "Invalid QR code. Please scan a valid customer QR code.";
+    // Detect if QR code is a UUID (loyalty card) or serial number (gift card)
+    const isUUID = (str: string): boolean => {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        return uuidRegex.test(str);
+    };
+
+    const handleScan = async (qrData: string) => {
+        if (!qrData || typeof qrData !== 'string' || qrData.trim().length === 0) {
+            const errorMessage = "Invalid QR code. Please scan a valid QR code.";
             setError(errorMessage);
             toast({
                 title: "Scan Error",
                 description: errorMessage,
                 variant: "destructive",
             });
-            // Restart scanning after error
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
@@ -282,41 +321,93 @@ export default function ScanPage() {
 
         setLoading(true);
         setError(null);
+        setCustomer(null);
+        setGiftCard(null);
         await stopScanning();
 
+        const trimmedData = qrData.trim();
+
         try {
-            // Add cache-busting timestamp and no-cache headers to ensure fresh data
+            // Since gift card serial numbers are also UUIDs, we need to try both APIs
+            // Try loyalty card first, then gift card if not found
             const timestamp = new Date().getTime();
-            const response = await fetch(`/api/scan?userId=${encodeURIComponent(userId.trim())}&_t=${timestamp}`, {
-                cache: 'no-store',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                },
-            });
             
-            // Check if response is ok before parsing JSON
-            let data;
-            try {
-                data = await response.json();
-            } catch (jsonError) {
-                throw new Error("Invalid response from server. Please try again.");
-            }
+            if (isUUID(trimmedData)) {
+                // Try as loyalty card first
+                const loyaltyResponse = await fetch(`/api/scan?userId=${encodeURIComponent(trimmedData)}&_t=${timestamp}`, {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                    },
+                });
+                
+                let loyaltyData;
+                try {
+                    loyaltyData = await loyaltyResponse.json();
+                } catch (jsonError) {
+                    // If JSON parse fails, try gift card
+                }
 
-            if (!response.ok) {
-                throw new Error(data.error || "Failed to fetch customer data");
-            }
+                if (loyaltyResponse.ok && loyaltyData?.customer) {
+                    // Found as loyalty card
+                    setCustomer(loyaltyData.customer);
+                    setScanMode("loyalty");
+                } else {
+                    // Not found as loyalty card, try as gift card
+                    const giftCardResponse = await fetch(`/api/scan/gift-card?serialNumber=${encodeURIComponent(trimmedData)}&_t=${timestamp}`, {
+                        cache: 'no-store',
+                        headers: {
+                            'Cache-Control': 'no-cache',
+                        },
+                    });
+                    
+                    let giftCardData;
+                    try {
+                        giftCardData = await giftCardResponse.json();
+                    } catch (jsonError) {
+                        throw new Error("Invalid response from server. Please try again.");
+                    }
 
-            setCustomer(data.customer);
+                    if (!giftCardResponse.ok) {
+                        throw new Error(giftCardData.error || "Failed to fetch gift card data");
+                    }
+
+                    setGiftCard(giftCardData.giftCard);
+                    setScanMode("gift-card");
+                }
+            } else {
+                // Not a UUID, try as gift card serial number only
+                const giftCardResponse = await fetch(`/api/scan/gift-card?serialNumber=${encodeURIComponent(trimmedData)}&_t=${timestamp}`, {
+                    cache: 'no-store',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                    },
+                });
+                
+                let giftCardData;
+                try {
+                    giftCardData = await giftCardResponse.json();
+                } catch (jsonError) {
+                    throw new Error("Invalid response from server. Please try again.");
+                }
+
+                if (!giftCardResponse.ok) {
+                    throw new Error(giftCardData.error || "Failed to fetch gift card data");
+                }
+
+                setGiftCard(giftCardData.giftCard);
+                setScanMode("gift-card");
+            }
         } catch (err: any) {
-            const errorMessage = err.message || "Failed to scan customer";
+            const errorMessage = err.message || "Failed to scan QR code";
             setError(errorMessage);
             setCustomer(null);
+            setGiftCard(null);
             toast({
                 title: "Scan Error",
                 description: errorMessage,
                 variant: "destructive",
             });
-            // Restart scanning on error - store timeout ID for cleanup
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
@@ -424,8 +515,81 @@ export default function ScanPage() {
         }
     };
 
+    const handleGiftCardPurchase = async () => {
+        if (!giftCard) return;
+
+        const amount = parseFloat(saleTotal);
+        if (isNaN(amount) || amount <= 0) {
+            setError("Please enter a valid sale amount greater than 0");
+            toast({
+                title: "Invalid Amount",
+                description: "Please enter a valid sale amount",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (amount > giftCard.balance) {
+            setError(`Insufficient balance. Available: ${giftCard.balance.toFixed(2)} MXN`);
+            toast({
+                title: "Insufficient Balance",
+                description: `Available balance: ${giftCard.balance.toFixed(2)} MXN`,
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const response = await fetch("/api/purchase/gift-card", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    giftCardId: giftCard.id,
+                    saleTotal: amount,
+                }),
+            });
+
+            let data;
+            try {
+                data = await response.json();
+            } catch (jsonError) {
+                throw new Error("Invalid response from server. Please try again.");
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to process purchase");
+            }
+
+            const successMessage = data.message || `Purchase successful! Remaining balance: ${data.giftCard.balance.toFixed(2)} MXN`;
+            toast({
+                title: "Purchase Successful",
+                description: successMessage,
+                className: "bg-success text-success-foreground border-success",
+            });
+
+            // Update gift card with new balance
+            setGiftCard(data.giftCard);
+            setSaleTotal(""); // Clear sale total input
+        } catch (err: any) {
+            const errorMessage = err.message || "Failed to process purchase";
+            setError(errorMessage);
+            toast({
+                title: "Purchase Error",
+                description: errorMessage,
+                variant: "destructive",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const resetScan = async () => {
         setCustomer(null);
+        setGiftCard(null);
+        setSaleTotal("");
         setError(null);
         await stopScanning();
         
@@ -460,10 +624,36 @@ export default function ScanPage() {
                             target.style.display = 'none';
                         }}
                     />
-                    <h1 className="text-4xl font-bold text-center text-foreground font-display">Employee Scan</h1>
+                    <h1 className="text-4xl font-bold text-center text-foreground font-display mb-4">Employee Scan</h1>
+                    <Link href="/gift-card/create">
+                        <Button
+                            variant="outline"
+                            className="bg-card border-border text-foreground hover:bg-accent mb-4"
+                        >
+                            <Gift className="mr-2 h-4 w-4" />
+                            Create Gift Card
+                        </Button>
+                    </Link>
+                    
+                    {/* Mode Selector */}
+                    <Tabs value={scanMode} onValueChange={(value) => {
+                        setScanMode(value as ScanMode);
+                        resetScan();
+                    }} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="loyalty" className="gap-2">
+                                <Coins className="w-4 h-4" />
+                                Loyalty Card
+                            </TabsTrigger>
+                            <TabsTrigger value="gift-card" className="gap-2">
+                                <CreditCard className="w-4 h-4" />
+                                Gift Card
+                            </TabsTrigger>
+                        </TabsList>
+                    </Tabs>
                 </div>
 
-            {!customer && (
+            {!customer && !giftCard && (
                     <Card className="bg-card border-border shadow-lg">
                         <CardContent className="p-4">
                             {/* Scanner container */}
@@ -497,14 +687,27 @@ export default function ScanPage() {
                             
                             {cameraPermission === "denied" && (
                                 <div className="bg-warning/10 border border-warning text-warning-foreground px-4 py-3 rounded mb-4">
-                                    <p className="font-semibold">Camera permission denied</p>
-                                    <p className="text-sm mt-1">Please allow camera access in your browser settings and refresh the page.</p>
-                                    <Button 
-                                        onClick={startScanning} 
-                                        className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground"
-                                    >
-                                        Try Again
-                                    </Button>
+                                    <p className="font-semibold">Camera Access Unavailable</p>
+                                    {error && error.includes("secure connection") ? (
+                                        <>
+                                            <p className="text-sm mt-1">{error}</p>
+                                            <p className="text-sm mt-2 font-semibold">Solutions:</p>
+                                            <ul className="text-sm mt-1 list-disc list-inside space-y-1">
+                                                <li>Use <code className="bg-background px-1 rounded">http://localhost:3000</code> instead of your local IP</li>
+                                                <li>Or set up HTTPS for local development</li>
+                                            </ul>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <p className="text-sm mt-1">Please allow camera access in your browser settings and refresh the page.</p>
+                                            <Button 
+                                                onClick={startScanning} 
+                                                className="mt-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+                                            >
+                                                Try Again
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             )}
                             
@@ -534,7 +737,7 @@ export default function ScanPage() {
 
             {customer && (
                 <div className="space-y-4">
-                        {/* Scan New Customer Button - Prominent at top */}
+                        {/* Scan New Button - Prominent at top */}
                         <Button
                             onClick={resetScan}
                             disabled={loading}
@@ -618,6 +821,85 @@ export default function ScanPage() {
                             </div>
                         </CardContent>
                     </Card>
+                </div>
+            )}
+
+            {giftCard && (
+                <div className="space-y-4">
+                        {/* Scan New Button - Prominent at top */}
+                        <Button
+                            onClick={resetScan}
+                            disabled={loading}
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground text-lg py-6 font-semibold"
+                            size="lg"
+                        >
+                            <QrCode className="mr-2 h-5 w-5" />
+                            Scan New Gift Card
+                        </Button>
+
+                        <Card className="bg-card border-border shadow-lg">
+                            <CardHeader>
+                                <CardTitle className="text-foreground">Gift Card Information</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-2 text-foreground">
+                                    <p><strong>Recipient:</strong> {giftCard.recipientName}</p>
+                                    <p><strong>Balance:</strong> ${giftCard.balance.toFixed(2)} MXN</p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Initial Balance: ${giftCard.initialBalance.toFixed(2)} MXN
+                                    </p>
+                                    {giftCard.balance === 0 && (
+                                        <p className="text-sm text-warning font-semibold">
+                                            Balance is zero
+                                        </p>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-card border-border shadow-lg">
+                            <CardHeader>
+                                <CardTitle className="text-foreground">Process Purchase</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="saleTotal" className="text-foreground">
+                                            Sale Total (MXN)
+                                        </Label>
+                                        <Input
+                                            id="saleTotal"
+                                            type="number"
+                                            placeholder="Enter sale amount"
+                                            value={saleTotal}
+                                            onChange={(e) => setSaleTotal(e.target.value)}
+                                            min="0.01"
+                                            step="0.01"
+                                            className="bg-background"
+                                        />
+                                        {giftCard.balance > 0 && (
+                                            <p className="text-sm text-muted-foreground">
+                                                Available balance: ${giftCard.balance.toFixed(2)} MXN
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <Button
+                                        onClick={handleGiftCardPurchase}
+                                        disabled={loading || !saleTotal || parseFloat(saleTotal) <= 0 || parseFloat(saleTotal) > giftCard.balance}
+                                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                                    >
+                                        {loading ? "Processing..." : `Deduct ${saleTotal ? `$${parseFloat(saleTotal).toFixed(2)}` : 'Amount'} MXN`}
+                                    </Button>
+
+                                    {giftCard.balance === 0 && (
+                                        <p className="text-sm text-muted-foreground text-center">
+                                            This gift card has no remaining balance.
+                                        </p>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
                 </div>
             )}
             </div>
