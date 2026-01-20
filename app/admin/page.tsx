@@ -153,7 +153,8 @@ export default function AdminPage() {
     queryKey: ['admin-invitations'],
     queryFn: fetchInvitations,
     enabled: isAuthorized,
-    refetchInterval: 10000, // Refetch every 10 seconds
+    // Removed refetchInterval - invitations are rarely used and manually created
+    // They will refresh when the form creates a new invitation (via handleInviteCreated)
   });
 
   const { data: transactions = [], isLoading: transactionsLoading } = useQuery({
@@ -167,6 +168,7 @@ export default function AdminPage() {
     queryKey: ['admin-gift-cards'],
     queryFn: fetchGiftCards,
     enabled: isAuthorized,
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
   });
 
   // Refresh data after invitation creation
