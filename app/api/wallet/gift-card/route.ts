@@ -87,24 +87,25 @@ export async function GET(req: NextRequest) {
     }
 
     // Configure Web Service URL for Real-Time Updates
-    // For preview deployments, prioritize VERCEL_URL (which is the preview URL)
-    // For production, use NEXT_PUBLIC_APP_URL if set
+    // CRITICAL: webServiceURL must point to a STABLE URL that won't change between deployments
+    // Preview deployments have different VERCEL_URLs each time, which breaks registration
+    // Solution: Always use NEXT_PUBLIC_APP_URL (production) for webServiceURL if available
+    // This ensures the pass always points to the same registration endpoints
     let baseUrl: string;
     
-    if (process.env.VERCEL_URL) {
-      // VERCEL_URL is automatically set by Vercel for each deployment (preview or production)
-      // This ensures preview deployments use the preview URL
-      baseUrl = `https://${process.env.VERCEL_URL}`;
-    } else if (process.env.NEXT_PUBLIC_APP_URL) {
-      // Fallback to explicit production URL if VERCEL_URL not available
+    if (process.env.NEXT_PUBLIC_APP_URL) {
+      // Use production URL for webServiceURL (stable, doesn't change)
       baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        baseUrl = `https://${baseUrl}`;
+      }
+    } else if (process.env.VERCEL_URL) {
+      // Fallback to VERCEL_URL only if NEXT_PUBLIC_APP_URL not set
+      // This is less ideal because preview URLs change between deployments
+      baseUrl = `https://${process.env.VERCEL_URL}`;
     } else {
       // Local development fallback
       baseUrl = 'http://localhost:3000';
-    }
-    
-    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-      baseUrl = `https://${baseUrl}`;
     }
 
     // Check if URL is publicly accessible (not localhost or local network IP)
