@@ -322,7 +322,7 @@ export default function CreateGiftCardPage() {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-2">
-                  {navigator.share && (
+                  {typeof navigator !== 'undefined' && 'share' in navigator && (
                     <Button
                       onClick={handleNativeShare}
                       className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
