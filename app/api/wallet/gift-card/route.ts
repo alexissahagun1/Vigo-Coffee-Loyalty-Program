@@ -155,11 +155,18 @@ export async function GET(req: NextRequest) {
       passJsonProps.webServiceURL = `${baseUrl}/api/pass/giftcard`;
       passJsonProps.authenticationToken = generateAuthToken(giftCard.serial_number);
       console.log('✅ Web service URL configured:', passJsonProps.webServiceURL);
+      console.log('✅ Authentication token generated for serial:', giftCard.serial_number);
+      console.log('✅ Base URL used:', baseUrl);
+      console.log('✅ Is Public URL:', isPublicUrl);
+      console.log('✅ VERCEL_URL:', process.env.VERCEL_URL || 'not set');
+      console.log('✅ NEXT_PUBLIC_APP_URL:', process.env.NEXT_PUBLIC_APP_URL || 'not set');
     } else {
       // On localhost/local network, omit webServiceURL to avoid Apple Wallet rejection
       // The pass will still work, but automatic updates won't be available
       console.log('⚠️  Running on local network - omitting webServiceURL to avoid Apple Wallet rejection');
       console.log('   Pass will work but automatic updates will not be available');
+      console.log('   Base URL:', baseUrl);
+      console.log('   VERCEL_URL:', process.env.VERCEL_URL || 'not set');
     }
 
     // Initialize the Pass

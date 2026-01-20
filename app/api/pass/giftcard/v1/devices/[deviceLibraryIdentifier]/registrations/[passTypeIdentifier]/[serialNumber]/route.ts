@@ -18,6 +18,9 @@ export async function POST(
     console.log(`[${timestamp}] 💳 Gift card registration attempt for pass ${serialNumber}`);
     console.log(`[${timestamp}]    Device: ${deviceLibraryIdentifier}`);
     console.log(`[${timestamp}]    Pass Type: ${passTypeIdentifier}`);
+    console.log(`[${timestamp}]    Full URL: ${req.url}`);
+    console.log(`[${timestamp}]    Method: ${req.method}`);
+    console.log(`[${timestamp}]    Headers:`, Object.fromEntries(req.headers.entries()));
     
     // Get push token from request body
     const body = await req.text();
@@ -34,13 +37,18 @@ export async function POST(
     }
     
     console.log(`   Push Token: ${pushToken ? 'Present' : 'Missing'}`);
+    if (pushToken) {
+      console.log(`   Push Token (first 20 chars): ${pushToken.substring(0, 20)}...`);
+    }
 
     // Validate authentication token
     const authToken = req.headers.get('authorization')?.replace('ApplePass ', '');
     if (!authToken) {
       console.error('❌ Registration failed: No auth token provided');
+      console.error('   Available headers:', Object.keys(req.headers));
       return new NextResponse('Unauthorized', { status: 401 });
     }
+    console.log(`   Auth Token: ${authToken.substring(0, 8)}...`);
 
     // Store registration in database
     const supabase = createServiceRoleClient();

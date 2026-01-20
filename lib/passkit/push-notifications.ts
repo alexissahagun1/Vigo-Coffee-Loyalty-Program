@@ -62,7 +62,29 @@ export async function notifyPassUpdate(
     }
 
     if (!registrations || registrations.length === 0) {
+      // Debug: Check if there are ANY registrations for this serial number (any pass type)
+      const { data: anyRegistrations } = await supabase
+        .from('pass_registrations')
+        .select('pass_type_identifier, serial_number, device_library_identifier, updated_at')
+        .eq('serial_number', serialNumber);
+      
       console.log(`🍎 [APPLE WALLET] ⚠️  No registered devices found for pass ${serialNumber}`);
+      console.log(`🍎 [APPLE WALLET]    Query used: serial_number='${serialNumber}', pass_type_identifier='${passTypeIdentifier}'`);
+      if (anyRegistrations && anyRegistrations.length > 0) {
+        console.log(`🍎 [APPLE WALLET]    Found ${anyRegistrations.length} registration(s) for this serial with different pass types:`);
+        anyRegistrations.forEach((reg, idx) => {
+          console.log(`🍎 [APPLE WALLET]      ${idx + 1}. Pass Type: ${reg.pass_type_identifier}, Device: ${reg.device_library_identifier?.substring(0, 8)}..., Updated: ${reg.updated_at}`);
+        });
+        console.log(`🍎 [APPLE WALLET]    ⚠️  Pass type mismatch! Looking for '${passTypeIdentifier}' but found different pass types.`);
+      } else {
+        console.log(`🍎 [APPLE WALLET]    No registrations found for this serial number at all.`);
+        console.log(`🍎 [APPLE WALLET]    This means Apple has not called the registration endpoint yet.`);
+        console.log(`🍎 [APPLE WALLET]    Possible causes:`);
+        console.log(`🍎 [APPLE WALLET]      1. Pass was generated without webServiceURL (check pass generation logs)`);
+        console.log(`🍎 [APPLE WALLET]      2. webServiceURL points to wrong URL (check pass generation logs)`);
+        console.log(`🍎 [APPLE WALLET]      3. Apple hasn't tried to register yet (wait 1-2 minutes after adding pass)`);
+        console.log(`🍎 [APPLE WALLET]      4. Certificate/Pass Type ID mismatch preventing Apple from calling endpoint`);
+      }
       console.log(`🍎 [APPLE WALLET]    Pass must be registered first for instant updates`);
       console.log(`🍎 [APPLE WALLET]    Apple will register automatically within 1-2 minutes of adding pass to Wallet`);
       console.log(`🍎 [APPLE WALLET]    Until then, pass will update when user opens it in Wallet`);
