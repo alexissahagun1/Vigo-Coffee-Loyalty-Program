@@ -21,8 +21,17 @@ export async function GET(
   { params }: { params: Promise<{ passTypeIdentifier: string; serialNumber: string }> }
 ) {
   const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] 💳 ============================================`);
   console.log(`[${timestamp}] 💳 GIFT CARD PASS UPDATE ENDPOINT CALLED BY APPLE`);
+  console.log(`[${timestamp}] 💳 ============================================`);
   console.log(`[${timestamp}] 💳 URL: ${req.url}`);
+  console.log(`[${timestamp}] 💳 Method: ${req.method}`);
+  console.log(`[${timestamp}] 💳 Headers:`, {
+    'user-agent': req.headers.get('user-agent'),
+    'if-modified-since': req.headers.get('if-modified-since'),
+    'authorization': req.headers.get('authorization') ? 'Present' : 'Missing',
+    'cache-control': req.headers.get('cache-control'),
+  });
   
   try {
     // Support separate gift card certificates, with fallback to loyalty card certificates
@@ -59,7 +68,8 @@ export async function GET(
     }
 
     // Fetch gift card data (serialNumber is the gift card serial_number)
-    console.log(`🔍 Fetching gift card for serial: ${serialNumber}`);
+    // IMPORTANT: Always fetch fresh data - no caching
+    console.log(`[${timestamp}] 🔍 Fetching gift card for serial: ${serialNumber}`);
     const supabase = createServiceRoleClient();
     const { data: giftCard, error: giftCardError } = await supabase
       .from('gift_cards')
@@ -68,10 +78,11 @@ export async function GET(
       .single();
     
     if (giftCard) {
-      console.log(`📊 Fetched gift card data:`, {
+      console.log(`[${timestamp}] 📊 Fetched gift card data:`, {
         id: giftCard.id,
         serial_number: giftCard.serial_number,
         balance_mxn: giftCard.balance_mxn,
+        balance_type: typeof giftCard.balance_mxn,
         updated_at: giftCard.updated_at,
       });
     }
@@ -136,6 +147,7 @@ export async function GET(
     }
 
     const balanceMxn = Number(giftCard.balance_mxn) || 0;
+    console.log(`[${timestamp}] 💰 Using balance: ${balanceMxn} MXN (from database)`);
 
     const passJsonProps: any = {
       passTypeIdentifier: passTypeIdentifier,
@@ -299,7 +311,9 @@ export async function GET(
         throw new Error('Generated pass is not a valid ZIP file');
       }
       
-      console.log(`✅ Gift card pass generated successfully for ${serialNumber}, size: ${buffer.length} bytes`);
+      console.log(`[${timestamp}] ✅ Gift card pass generated successfully for ${serialNumber}`);
+      console.log(`[${timestamp}]    Balance in pass: $${balanceMxn.toFixed(2)} MXN`);
+      console.log(`[${timestamp}]    Pass size: ${buffer.length} bytes`);
       
       return new NextResponse(buffer as unknown as BodyInit, {
         headers: {
