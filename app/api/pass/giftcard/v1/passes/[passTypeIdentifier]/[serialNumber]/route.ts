@@ -97,9 +97,21 @@ export async function GET(
     }
 
     // Configure Web Service URL
-    let baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
-      'http://localhost:3000');
+    // For preview deployments, prioritize VERCEL_URL (which is the preview URL)
+    // For production, use NEXT_PUBLIC_APP_URL if set
+    let baseUrl: string;
+    
+    if (process.env.VERCEL_URL) {
+      // VERCEL_URL is automatically set by Vercel for each deployment (preview or production)
+      // This ensures preview deployments use the preview URL
+      baseUrl = `https://${process.env.VERCEL_URL}`;
+    } else if (process.env.NEXT_PUBLIC_APP_URL) {
+      // Fallback to explicit production URL if VERCEL_URL not available
+      baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+    } else {
+      // Local development fallback
+      baseUrl = 'http://localhost:3000';
+    }
     
     if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
       baseUrl = `https://${baseUrl}`;

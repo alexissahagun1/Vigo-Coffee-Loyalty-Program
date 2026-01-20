@@ -58,11 +58,14 @@ export async function POST(
       });
 
     if (insertError) {
-      console.error('❌ Error storing gift card registration:', insertError);
+      console.error(`[${timestamp}] ❌ Error storing gift card registration:`, insertError);
+      console.error(`[${timestamp}]    Error details:`, insertError.message);
       return new NextResponse('Created', { status: 201 });
     }
 
-    console.log(`✅ Gift card pass registered successfully: ${serialNumber} on device ${deviceLibraryIdentifier}`);
+    console.log(`[${timestamp}] ✅ Gift card pass registered successfully: ${serialNumber} on device ${deviceLibraryIdentifier}`);
+    console.log(`[${timestamp}]    Registration stored in database`);
+    console.log(`[${timestamp}]    Push token: ${pushToken ? 'Present' : 'Missing'}`);
     return new NextResponse('Created', { status: 201 });
   } catch (error: any) {
     console.error('❌ Error in gift card device registration POST:', error);
