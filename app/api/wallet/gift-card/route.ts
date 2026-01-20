@@ -87,22 +87,34 @@ export async function GET(req: NextRequest) {
     }
 
     // Configure Web Service URL for Real-Time Updates
-    // CRITICAL: webServiceURL must point to a STABLE URL that won't change between deployments
-    // Preview deployments have different VERCEL_URLs each time, which breaks registration
-    // Solution: Always use NEXT_PUBLIC_APP_URL (production) for webServiceURL if available
-    // This ensures the pass always points to the same registration endpoints
+    // Strategy: Use production URL if available (stable), otherwise use current preview URL
+    // NOTE: For preview testing, the pass will work until the next deployment (URL changes)
+    // For production, always use NEXT_PUBLIC_APP_URL for stability
     let baseUrl: string;
+    const isPreview = process.env.VERCEL_ENV === 'preview';
     
-    if (process.env.NEXT_PUBLIC_APP_URL) {
-      // Use production URL for webServiceURL (stable, doesn't change)
+    if (process.env.NEXT_PUBLIC_APP_URL && !isPreview) {
+      // Production: Use stable production URL
       baseUrl = process.env.NEXT_PUBLIC_APP_URL;
       if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
         baseUrl = `https://${baseUrl}`;
       }
     } else if (process.env.VERCEL_URL) {
-      // Fallback to VERCEL_URL only if NEXT_PUBLIC_APP_URL not set
-      // This is less ideal because preview URLs change between deployments
+      // Preview or no production URL: Use current deployment URL
+      // WARNING: Preview URLs change between deployments - pass will break after redeploy
       baseUrl = `https://${process.env.VERCEL_URL}`;
+      if (isPreview) {
+        console.warn('⚠️  Using preview URL for webServiceURL - pass will stop working after next deployment');
+        console.warn('   For production, ensure NEXT_PUBLIC_APP_URL is set and gift card endpoints are deployed');
+      }
+    } else if (process.env.NEXT_PUBLIC_APP_URL) {
+      // Fallback: Use production URL even on preview (if endpoints exist in production)
+      baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        baseUrl = `https://${baseUrl}`;
+      }
+      console.warn('⚠️  Using production URL for webServiceURL on preview deployment');
+      console.warn('   Ensure gift card endpoints are deployed to production for this to work');
     } else {
       // Local development fallback
       baseUrl = 'http://localhost:3000';
