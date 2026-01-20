@@ -17,7 +17,8 @@ import {
   Coffee,
   Loader2,
   BarChart3,
-  Receipt
+  Receipt,
+  Gift
 } from "lucide-react";
 
 import { DashboardHeader } from "@/components/admin/DashboardHeader";
@@ -30,7 +31,11 @@ import { TopCustomers } from "@/components/admin/TopCustomers";
 import { InviteForm } from "@/components/admin/InviteForm";
 import { CustomerForm } from "@/components/admin/CustomerForm";
 import { AnalyticsOverview } from "@/components/admin/AnalyticsOverview";
+import { GiftCardTable } from "@/components/admin/GiftCardTable";
+import { GiftCardAnalytics } from "@/components/admin/GiftCardAnalytics";
 import { createClient } from "@/lib/supabase/client";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 // API fetch functions
 async function fetchStats() {
@@ -68,12 +73,20 @@ async function fetchTransactions() {
   return data.transactions || [];
 }
 
+async function fetchGiftCards() {
+  const res = await fetch('/api/admin/gift-cards');
+  if (!res.ok) throw new Error('Failed to fetch gift cards');
+  const data = await res.json();
+  return data.giftCards;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setTheme } = useTheme();
   const [customerSearch, setCustomerSearch] = useState("");
   const [employeeSearch, setEmployeeSearch] = useState("");
+  const [giftCardSearch, setGiftCardSearch] = useState("");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [username, setUsername] = useState<string | undefined>(undefined);
@@ -150,6 +163,12 @@ export default function AdminPage() {
     refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
   });
 
+  const { data: giftCards = [], isLoading: giftCardsLoading } = useQuery({
+    queryKey: ['admin-gift-cards'],
+    queryFn: fetchGiftCards,
+    enabled: isAuthorized,
+  });
+
   // Refresh data after invitation creation
   const handleInviteCreated = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-invitations'] });
@@ -175,6 +194,13 @@ export default function AdminPage() {
     queryClient.invalidateQueries({ queryKey: ['admin-transactions'] });
   };
 
+  // Refresh data after gift card update
+  const handleGiftCardUpdated = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-gift-cards'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['gift-card-stats'] });
+  };
+
   const filteredCustomers = customers.filter((c: any) => 
     c.full_name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
     c.email?.toLowerCase().includes(customerSearch.toLowerCase()) ||
@@ -187,6 +213,11 @@ export default function AdminPage() {
     e.full_name?.toLowerCase().includes(employeeSearch.toLowerCase()) ||
     e.email.toLowerCase().includes(employeeSearch.toLowerCase()) ||
     e.username.toLowerCase().includes(employeeSearch.toLowerCase())
+  );
+
+  const filteredGiftCards = giftCards.filter((gc: any) => 
+    gc.recipient_name?.toLowerCase().includes(giftCardSearch.toLowerCase()) ||
+    gc.serial_number?.toLowerCase().includes(giftCardSearch.toLowerCase())
   );
 
   const topCustomers = stats?.topCustomers || [];
@@ -256,6 +287,13 @@ export default function AdminPage() {
             >
               <Mail className="w-4 h-4" />
               <span className="hidden sm:inline">Invitations</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="gift-cards"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2"
+            >
+              <Gift className="w-4 h-4" />
+              <span className="hidden sm:inline">Gift Cards</span>
             </TabsTrigger>
           </TabsList>
 
@@ -474,6 +512,51 @@ export default function AdminPage() {
                 )}
               </div>
           </div>
+          </TabsContent>
+
+          {/* Gift Cards Tab */}
+          <TabsContent value="gift-cards" className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-display font-bold">Gift Cards</h2>
+                <p className="text-muted-foreground">Manage gift cards and view analytics</p>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search gift cards..."
+                    value={giftCardSearch}
+                    onChange={(e) => setGiftCardSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Link href="/gift-card/create">
+                  <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                    <Gift className="mr-2 h-4 w-4" />
+                    Create Gift Card
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Gift Card Analytics */}
+            <GiftCardAnalytics />
+
+            {/* Gift Card Table */}
+            <div>
+              <h3 className="text-xl font-display font-bold mb-4">All Gift Cards</h3>
+              {giftCardsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <GiftCardTable 
+                  giftCards={filteredGiftCards} 
+                  onGiftCardUpdated={handleGiftCardUpdated}
+                />
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </main>
