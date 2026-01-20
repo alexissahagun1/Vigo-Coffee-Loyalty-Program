@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
       { data: profilesData },
       { count: pendingInvitations },
       { data: topCustomers },
+      { data: giftCardsData },
     ] = await Promise.all([
       // Get total customers
       supabase
@@ -56,6 +57,11 @@ export async function GET(req: NextRequest) {
         .select('id, full_name, points_balance, total_purchases')
         .order('points_balance', { ascending: false })
         .limit(10),
+      
+      // Get gift cards data for statistics
+      supabase
+        .from('gift_cards')
+        .select('balance_mxn, initial_balance_mxn, is_active, claimed_at'),
     ]);
 
     // Calculate totals from the profiles data
@@ -96,6 +102,11 @@ export async function GET(req: NextRequest) {
       ? Math.min(100, Math.round((mealRewardsRedeemed / maxMealRewards) * 100))
       : 0;
 
+    // Calculate gift card statistics
+    const totalGiftCards = giftCardsData?.length || 0;
+    const totalGiftCardBalance = giftCardsData?.reduce((sum, gc) => sum + Number(gc.initial_balance_mxn || 0), 0) || 0;
+    const giftCardsClaimed = giftCardsData?.filter(gc => gc.claimed_at !== null).length || 0;
+
     return NextResponse.json({
       success: true,
       stats: {
@@ -111,6 +122,9 @@ export async function GET(req: NextRequest) {
         mealRewardsRedeemed,
         coffeeRewardsProgress,
         mealRewardsProgress,
+        totalGiftCards,
+        totalGiftCardBalance,
+        giftCardsClaimed,
       },
     });
 
